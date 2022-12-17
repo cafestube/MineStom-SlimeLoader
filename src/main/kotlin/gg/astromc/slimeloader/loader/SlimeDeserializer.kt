@@ -1,30 +1,30 @@
 package gg.astromc.slimeloader.loader
 
+import gg.astromc.slimeloader.helpers.ChunkHelpers.getChunkIndex
+import gg.astromc.slimeloader.helpers.NBTHelpers.readNBTTag
 import net.minestom.server.MinecraftServer
 import net.minestom.server.instance.Chunk
 import net.minestom.server.instance.DynamicChunk
 import net.minestom.server.instance.Instance
+import net.minestom.server.instance.Section
 import net.minestom.server.instance.block.Block
-import org.jglrxavpok.hephaistos.collections.ImmutableLongArray
-import org.jglrxavpok.hephaistos.mca.unpack
 import org.jglrxavpok.hephaistos.nbt.NBTCompound
+import org.jglrxavpok.hephaistos.nbt.NBTList
 import org.jglrxavpok.hephaistos.nbt.NBTString
-import gg.astromc.slimeloader.helpers.ChunkHelpers.getChunkIndex
-import gg.astromc.slimeloader.helpers.NBTHelpers.readNBTTag
 import java.io.ByteArrayInputStream
 import java.io.DataInputStream
 import java.util.*
 import kotlin.math.floor
 
+
 internal class SlimeDeserializer(
-    private val instance: Instance,
     private val chunkData: ByteArray,
     private val tileEntityData: ByteArray,
     private val depth: Int,
     private val width: Int,
     private val chunkMinX: Short,
     private val chunkMinZ: Short,
-    private val chunkMask: BitSet
+    private val chunkMask: BitSet,
 ) {
 
     fun readChunks(): Map<Long, Chunk> {
@@ -40,7 +40,7 @@ internal class SlimeDeserializer(
                 val realChunkZ = chunkZ + chunkMinZ
 
                 if (chunkMask[bitsetIndex]) {
-                    val chunk = readChunk(chunkDataStream, instance, realChunkX, realChunkZ)
+                    val chunk = readChunk(chunkDataStream, realChunkX, realChunkZ)
                     val chunkIndex = getChunkIndex(realChunkX, realChunkZ)
                     tempChunks[chunkIndex] = chunk
                 }
@@ -53,81 +53,56 @@ internal class SlimeDeserializer(
 
     private fun readChunk(
         chunkDataStream: DataInputStream,
-        instance: Instance,
         chunkX: Int,
-        chunkZ: Int
-    ): Chunk {
+        chunkZ: Int,
+    ): SlimeChunk {
         // Getting the heightmap
         val heightMapSize = chunkDataStream.readInt()
         val heightMap = ByteArray(heightMapSize)
         chunkDataStream.read(heightMap)
         val heightMapNBT = readNBTTag(heightMap) ?: NBTCompound()
 
-        // Getting the biomes
-        val biomesLength = chunkDataStream.readInt()
-        val biomes = IntArray(biomesLength)
-        for (i in biomes.indices) {
-            biomes[i] = chunkDataStream.readInt()
-        }
 
-        // Creating the chunk
-        // TODO: Read biomes lol
-        val chunk = DynamicChunk(instance, chunkX, chunkZ)
-        readChunkSections(chunkDataStream, chunk)
+        var readChunkSections = readChunkSections(chunkDataStream)
 
-        return chunk
+        return SlimeChunk(chunkX, chunkZ, readChunkSections.sections, heightMapNBT, readChunkSections.minSection, readChunkSections.maxSection)
     }
 
-    private fun readChunkSections(chunkDataStream: DataInputStream, chunk: Chunk) {
-        val chunkSectionsByteArray = ByteArray(2)
-        chunkDataStream.read(chunkSectionsByteArray)
-        val chunkSectionsMask: BitSet = BitSet.valueOf(chunkSectionsByteArray)
+    private fun readChunkSections(dataStream: DataInputStream): SlimeSectionData {
+        val minSectionY = dataStream.readInt()
+        val maxSectionY = dataStream.readInt()
+        val sectionCount = dataStream.readInt()
 
-        for (chunkSection in 0..15) {
-            val yOffset = chunkSection * 16
+        val sections = Array(sectionCount) { DUMMY_SECTION }
 
-            if (chunkSectionsMask[chunkSection]) {
-                // Light Data
-                val hasBlockLight = chunkDataStream.readBoolean()
-                val blockLight = if (hasBlockLight) { chunkDataStream.readNBytes(2048) } else ByteArray(2048)
+        for (chunkSection in 0 until sectionCount) {
+            val chunkY = dataStream.readInt()
 
-                // Palette Data
-                val paletteLength = chunkDataStream.readInt()
-                val paletteList = mutableListOf<NBTCompound>()
-
-                for (i in 0 until paletteLength) {
-                    val nbtLength = chunkDataStream.readInt()
-                    val nbtRaw = chunkDataStream.readNBytes(nbtLength)
-                    val nbtCompound = readNBTTag<NBTCompound>(nbtRaw) ?: continue
-                    paletteList.add(nbtCompound)
-                }
-
-                // Block States
-                val blockStatesLength = chunkDataStream.readInt()
-                val compactedBlockStates = ImmutableLongArray(blockStatesLength) { chunkDataStream.readLong() }
-
-                val sizeInBits = compactedBlockStates.size*64 / 4096
-                val blockStates = unpack(compactedBlockStates, sizeInBits).sliceArray(0 until 4096)
-
-                for (y in 0 until 16) {
-                    for (z in 0 until 16) {
-                        for (x in 0 until 16) {
-                            val pos = y * 16 * 16 + z * 16 + x
-                            val value = paletteList[blockStates[pos]]
-                            val block = getBlockFromCompound(value) ?: continue
-                            chunk.setBlock(x, yOffset + y, z, block)
-                        }
-                    }
-                }
-
-                // Skylight
-                val hasSkyLight = chunkDataStream.readBoolean()
-                val skyLight = if (hasSkyLight) { chunkDataStream.readNBytes(2048) } else ByteArray(2048)
-
-                chunk.getSection(chunkSection).skyLight = skyLight
-                chunk.getSection(chunkSection).blockLight = blockLight
+            var blockLightArray: ByteArray? = null
+            if (dataStream.readBoolean()) {
+                blockLightArray = ByteArray(2048)
+                dataStream.read(blockLightArray)
             }
+
+            val blockStateData = ByteArray(dataStream.readInt())
+            dataStream.read(blockStateData)
+            val blockStateTag = readNBTTag<NBTCompound>(blockStateData)!!
+
+            val biomeData = ByteArray(dataStream.readInt())
+            dataStream.read(biomeData)
+            val biomeTag = readNBTTag<NBTCompound>(biomeData)!!
+
+            var skyLightArray: ByteArray? = null
+            if (dataStream.readBoolean()) {
+                skyLightArray = ByteArray(2048)
+                dataStream.read(skyLightArray)
+            }
+
+            val section = SlimeSection(blockStateTag, biomeTag, blockLightArray, skyLightArray)
+            sections[chunkY] = section
         }
+
+        return SlimeSectionData(sections, minSectionY, maxSectionY)
     }
 
     private fun getBlockFromCompound(compound: NBTCompound): Block? {
@@ -139,7 +114,6 @@ internal class SlimeDeserializer(
         for ((key, rawValue) in properties) {
             newProps[key] = (rawValue as NBTString).value
         }
-
         return Block.fromNamespaceId(name)?.withProperties(newProps)
     }
 

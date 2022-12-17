@@ -16,8 +16,8 @@ repositories {
 }
 
 dependencies {
-    compileOnly("com.github.Minestom:Minestom:af28caad9e")
-    api("com.github.luben:zstd-jni:1.5.2-3")
+    implementation("com.github.Minestom:Minestom:809d9516b2")
+    implementation("com.github.luben:zstd-jni:1.5.2-3")
 }
 
 val compileKotlin: KotlinCompile by tasks

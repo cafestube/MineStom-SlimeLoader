@@ -13,23 +13,20 @@ import gg.astromc.slimeloader.loader.SlimeLoader
 import java.io.File
 import kotlin.system.measureTimeMillis
 
-val slimeDimension: DimensionType = DimensionType
-    .builder(NamespaceID.from("slime:testing"))
-    .ambientLight(1.0f)
-    .build()
 
 fun main() {
     val server = MinecraftServer.init()
 
-    val dimensionTypeManager = MinecraftServer.getDimensionTypeManager()
-    dimensionTypeManager.addDimension(slimeDimension)
+//    val dimensionTypeManager = MinecraftServer.getDimensionTypeManager()
+//    dimensionTypeManager.addDimension(slimeDimension)
 
     val instanceManager = MinecraftServer.getInstanceManager()
-    val instanceContainer = instanceManager.createInstanceContainer(slimeDimension)
+    val instanceContainer = instanceManager.createInstanceContainer(DimensionType.OVERWORLD)
 
     val slimeLoader: IChunkLoader
 
-    val file = File(System.getenv("TESTING_SLIME_FILE"))
+//    val file = File(System.getenv("TESTING_SLIME_FILE"))
+    val file = File("swamp.slime")
     val slimeSource: SlimeSource = FileSlimeSource(file)
 
     val timeToLoad = measureTimeMillis { slimeLoader = SlimeLoader(instanceContainer, slimeSource) }
@@ -42,7 +39,7 @@ fun main() {
     globalEventHandler.addListener(PlayerLoginEvent::class.java) {
         val player = it.player
         it.setSpawningInstance(instanceContainer)
-        player.respawnPoint = Pos(0.0, 80.0, 0.0)
+        player.respawnPoint = Pos(0.0, 120.0, 0.0)
         player.gameMode = GameMode.CREATIVE
         player.isAllowFlying = true
     }
