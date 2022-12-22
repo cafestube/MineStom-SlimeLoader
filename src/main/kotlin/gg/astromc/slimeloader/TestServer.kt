@@ -21,25 +21,22 @@ fun main() {
 //    dimensionTypeManager.addDimension(slimeDimension)
 
     val instanceManager = MinecraftServer.getInstanceManager()
-    val instanceContainer = instanceManager.createInstanceContainer(DimensionType.OVERWORLD)
 
     val slimeLoader: IChunkLoader
 
-//    val file = File(System.getenv("TESTING_SLIME_FILE"))
-    val file = File("swamp.slime")
+    val file = File(System.getenv("TESTING_SLIME_FILE"))
     val slimeSource: SlimeSource = FileSlimeSource(file)
-
-    val timeToLoad = measureTimeMillis { slimeLoader = SlimeLoader(instanceContainer, slimeSource) }
+    val timeToLoad = measureTimeMillis { slimeLoader = SlimeLoader(slimeSource) }
 
     println("Took ${timeToLoad}ms to load map.")
 
-    instanceContainer.chunkLoader = slimeLoader
-
+    val instanceContainer = instanceManager.createInstanceContainer(DimensionType.OVERWORLD, slimeLoader)
     val globalEventHandler = MinecraftServer.getGlobalEventHandler()
     globalEventHandler.addListener(PlayerLoginEvent::class.java) {
         val player = it.player
-        it.setSpawningInstance(instanceContainer)
         player.respawnPoint = Pos(0.0, 120.0, 0.0)
+
+        it.setSpawningInstance(instanceContainer)
         player.gameMode = GameMode.CREATIVE
         player.isAllowFlying = true
     }

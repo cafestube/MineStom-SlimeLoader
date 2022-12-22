@@ -1,12 +1,12 @@
 # 🗺️ SlimeLoader
 
-Slime loader is a map loader & saver for the file format Slime as specified [here](https://github.com/CatDevz/SlimeLoader/blob/master/SLIME_FORMAT.txt) implemented in Minestom.
+Slime loader is a map loader & saver for the file format Slime as specified [here](https://github.com/cafestube/Minestom-SlimeLoader/blob/master/SLIME_FORMAT.txt) implemented in Minestom.
 
 Features:
 ```
 - [x] World loading
   - [x] Blocks
-  - [x] TileEntities
+  - [ ] TileEntities
   - [ ] Entities
   - [x] Extra Data
         (Data will be loaded into the instance's "Data" Tag)
@@ -41,30 +41,27 @@ The library is quite simple to use. If you need to get your slime world from som
 
 ```kotlin
 val instanceManager = MinecraftServer.getInstanceManager()
-val instanceContainer = instanceManager.createInstanceContainer()
 
 val file = File("Slime file goes here")
 val slimeSource: SlimeSource = FileSlimeSource(file)
 val slimeLoader: IChunkLoader = SlimeLoader(instanceContainer, slimeSource)
+val instanceContainer = instanceManager.createInstanceContainer(DimensionType.OVERWORLD, slimeLoader)
 
-instanceContainer.chunkLoader = slimeLoader
 ```
 
 #### Java
 
 ```java
 InstanceManager instanceManager = MinecraftServer.getInstanceManager();
-InstanceContainer instanceContainer = instanceManager.createInstanceContainer();
 
 File file = new File("Slime file goes here");
 SlimeSource slimeSource = new FileSlimeSource(file);
-SlimeLoader slimeLoader = new SlimeLoader(instanceContainer, slimeSource, false);
-
-instanceContainer.setChunkLoader(slimeLoader);
+SlimeLoader slimeLoader = new SlimeLoader(slimeSource, false);
+InstanceContainer instanceContainer = instanceManager.createInstanceContainer(DimensionType.OVERWORLD, slimeLoader);
 ```
 
 ## License
 
 SlimeLoader is licensed under the MIT license
 
-###### Written by [Cody](https://github.com/CatDevz) for AstroMC
+###### Written by [Cody](https://github.com/CatDevz) for AstroMC updated by the CafeStube Dev Team for cafestu.be

@@ -27,11 +27,11 @@ internal class SlimeDeserializer(
     private val chunkMask: BitSet,
 ) {
 
-    fun readChunks(): Map<Long, Chunk> {
+    fun readChunks(): Map<Long, SlimeChunk> {
         val chunkDataByteStream = ByteArrayInputStream(chunkData)
         val chunkDataStream = DataInputStream(chunkDataByteStream)
 
-        val tempChunks = mutableMapOf<Long, Chunk>()
+        val tempChunks = mutableMapOf<Long, SlimeChunk>()
         for (chunkZ in 0 until depth) {
             for (chunkX in 0 until width) {
                 val bitsetIndex = chunkZ * width + chunkX
@@ -47,7 +47,7 @@ internal class SlimeDeserializer(
             }
         }
 
-        loadTileEntities(tempChunks)
+//        loadTileEntities(tempChunks)
         return tempChunks
     }
 
@@ -62,8 +62,7 @@ internal class SlimeDeserializer(
         chunkDataStream.read(heightMap)
         val heightMapNBT = readNBTTag(heightMap) ?: NBTCompound()
 
-
-        var readChunkSections = readChunkSections(chunkDataStream)
+        val readChunkSections = readChunkSections(chunkDataStream)
 
         return SlimeChunk(chunkX, chunkZ, readChunkSections.sections, heightMapNBT, readChunkSections.minSection, readChunkSections.maxSection)
     }
@@ -98,24 +97,13 @@ internal class SlimeDeserializer(
                 dataStream.read(skyLightArray)
             }
 
-            val section = SlimeSection(blockStateTag, biomeTag, blockLightArray, skyLightArray)
-            sections[chunkY] = section
+            val section = SlimeSection(chunkY, blockStateTag, biomeTag, blockLightArray, skyLightArray)
+            sections[chunkSection] = section
         }
 
         return SlimeSectionData(sections, minSectionY, maxSectionY)
     }
 
-    private fun getBlockFromCompound(compound: NBTCompound): Block? {
-        val name = compound.getString("Name") ?: return null
-        if (name == "minecraft:air") return null
-        val properties = compound.getCompound("Properties") ?: NBTCompound()
-
-        val newProps = mutableMapOf<String, String>()
-        for ((key, rawValue) in properties) {
-            newProps[key] = (rawValue as NBTString).value
-        }
-        return Block.fromNamespaceId(name)?.withProperties(newProps)
-    }
 
     private fun loadTileEntities(chunks: Map<Long, Chunk>) {
         val tileEntitiesCompound = readNBTTag<NBTCompound>(tileEntityData) ?: return
