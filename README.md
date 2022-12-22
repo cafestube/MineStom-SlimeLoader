@@ -25,11 +25,11 @@ Add the following to your `build.gradle.kts`
 
 ```kotlin
 repositories { 
-  maven("https://jitpack.io")
+  maven("https://repo.cafestu.be/repository/maven-public-snapshots/")
 }
 
 dependencies { 
-  implementation("com.github.CatDevz:SlimeLoader:master-SNAPSHOT")
+  implementation("eu.cafestube:Minestom-SlimeLoader:1.0.1-SNAPSHOT")
 }
 ```
 

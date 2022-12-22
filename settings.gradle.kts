@@ -1,3 +1,3 @@
 
-rootProject.name = "SlimeLoader"
+rootProject.name = "Minestom-SlimeLoader"
 

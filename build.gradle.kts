@@ -7,8 +7,8 @@ plugins {
     `java-library`
 }
 
-group = "gg.astromc"
-version = "1.0.0-SNAPSHOT"
+group = "eu.cafestube"
+version = "1.0.1-SNAPSHOT"
 
 repositories {
     mavenCentral()
@@ -41,7 +41,14 @@ publishing {
             artifactId = project.name
             version = project.version.toString()
 
-            from(components["java"])
+            artifact(tasks["java"])
+        }
+        repositories {
+            maven {
+                name = "cafestubeRepository"
+                credentials(PasswordCredentials::class)
+                url = uri("https://repo.cafestu.be/repository/maven-public-snapshots/")
+            }
         }
     }
 }
