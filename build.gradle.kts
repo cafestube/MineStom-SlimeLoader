@@ -41,7 +41,7 @@ publishing {
             artifactId = project.name
             version = project.version.toString()
 
-            artifact(tasks["java"])
+            from(components["java"])
         }
         repositories {
             maven {
