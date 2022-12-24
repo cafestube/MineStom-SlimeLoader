@@ -189,7 +189,7 @@ class SlimeLoader(
                                 val paletteIndex: Int = blockData[blockIndex]
                                 val block = convertedPalette[paletteIndex]
                                 if (block != null) {
-                                    chunk.setBlock(x, y + (Chunk.CHUNK_SECTION_SIZE * slimeSection.index), z, block)
+                                    chunk.setBlock(x, instance.dimensionType.minY + y + (Chunk.CHUNK_SECTION_SIZE * slimeSection.index), z, block)
                                 }
                             } catch (e: Exception) {
                                 MinecraftServer.getExceptionManager().handleException(e)
