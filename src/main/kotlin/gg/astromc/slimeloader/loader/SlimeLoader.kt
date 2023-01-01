@@ -2,6 +2,7 @@ package gg.astromc.slimeloader.loader
 
 import com.github.luben.zstd.Zstd
 import eu.cafestube.slimeloader.helpers.ChunkHelpers.getChunkIndex
+import eu.cafestube.slimeloader.helpers.NBTHelpers
 import eu.cafestube.slimeloader.loader.loadSlimeFile
 import gg.astromc.slimeloader.source.SlimeSource
 import net.minestom.server.MinecraftServer
@@ -52,7 +53,7 @@ class SlimeLoader(
             if(slimeSection.blockLight != null) {
                 section.blockLight = slimeSection.blockLight
             }
-            val biomes = readBiomes(slimeSection.biomeTag)
+            val biomes = NBTHelpers.readBiomes(slimeSection.biomeTag)
 
             if (biomes.hasBiomeInformation()) {
                 if (biomes.isFilledWithSingleBiome()) {
@@ -96,7 +97,7 @@ class SlimeLoader(
             //Blocks
             val blocks = slimeSection.blockStateTag
             val blockPalette = blocks.getList<NBTCompound>("palette")
-            val blockData = loadBlockData(blocks)
+            val blockData = NBTHelpers.loadBlockData(blocks)
 
             val convertedPalette = arrayOfNulls<Block>(blockPalette!!.size)
             for (i in convertedPalette.indices) {
@@ -131,20 +132,26 @@ class SlimeLoader(
 
                     convertedPalette[i] = block
                 }
+            }
 
-                for (y in 0 until Chunk.CHUNK_SECTION_SIZE) {
-                    for (z in 0 until Chunk.CHUNK_SECTION_SIZE) {
-                        for (x in 0 until Chunk.CHUNK_SECTION_SIZE) {
-                            try {
-                                val blockIndex = y * Chunk.CHUNK_SECTION_SIZE * Chunk.CHUNK_SECTION_SIZE + z * Chunk.CHUNK_SECTION_SIZE + x
-                                val paletteIndex: Int = blockData[blockIndex]
-                                val block = convertedPalette[paletteIndex]
-                                if (block != null) {
-                                    chunk.setBlock(x, instance.dimensionType.minY + y + (Chunk.CHUNK_SECTION_SIZE * slimeSection.index), z, block)
-                                }
-                            } catch (e: Exception) {
-                                MinecraftServer.getExceptionManager().handleException(e)
+
+            for (y in 0 until Chunk.CHUNK_SECTION_SIZE) {
+                for (z in 0 until Chunk.CHUNK_SECTION_SIZE) {
+                    for (x in 0 until Chunk.CHUNK_SECTION_SIZE) {
+                        try {
+                            val blockIndex = y * Chunk.CHUNK_SECTION_SIZE * Chunk.CHUNK_SECTION_SIZE + z * Chunk.CHUNK_SECTION_SIZE + x
+
+                            if(blockData.size <= blockIndex) {
+                                continue
                             }
+
+                            val paletteIndex: Int = blockData[blockIndex]
+                            val block = convertedPalette[paletteIndex]
+                            if (block != null) {
+                                chunk.setBlock(x, instance.dimensionType.minY + y + (Chunk.CHUNK_SECTION_SIZE * slimeSection.index), z, block)
+                            }
+                        } catch (e: Exception) {
+                            MinecraftServer.getExceptionManager().handleException(e)
                         }
                     }
                 }
@@ -154,34 +161,6 @@ class SlimeLoader(
         return CompletableFuture.completedFuture(chunk)
     }
 
-    //I'm once again here to tell you, that I have stolen from minestoms nbt library
-    private fun loadBlockData(blockStateTag: NBTCompound): IntArray {
-        val compactedBlockStates = blockStateTag.getLongArray("data") ?: return IntArray(0)
-        val sizeInBits = compactedBlockStates.size*64 / 4096
-
-        val expectedCompressedLength =
-            if(compactedBlockStates.size == 0) {
-                -1 /* force invalid value */
-            } else {
-                val intPerLong = 64 / sizeInBits
-                ceil(4096.0 / intPerLong).toInt()
-            }
-        var unpack = true
-        if(compactedBlockStates.size != expectedCompressedLength) {
-            if(compactedBlockStates.size == 0) {
-                // palette only has a single element
-                unpack = false
-            } else {
-                throw AnvilException("Invalid compressed BlockStates length (${compactedBlockStates.size}). At $sizeInBits bit per value, expected $expectedCompressedLength bytes. Note that 0 length is not allowed with pre 1.18 formats.")
-            }
-        }
-
-        return if(unpack) {
-            unpack(compactedBlockStates, sizeInBits).sliceArray(0 until 4096)
-        } else {
-            IntArray(4096) { 0 }
-        }
-    }
 
     private fun warnAboutMissingBiome(biomeName: String) {
         if(warnedBiomes.contains(biomeName)) return
@@ -189,43 +168,9 @@ class SlimeLoader(
         warnedBiomes.add(biomeName)
     }
 
-    //Method stolen from Minestoms nbt library thingy
-    private fun readBiomes(biomesNBT: NBTCompound): SectionBiomeInformation {
-        var biomes: Array<String>?
-        val paletteNBT = biomesNBT.getList<NBTString>("palette") ?: AnvilException.missing("biomes.palette")
-        val biomePalette = BiomePalette(paletteNBT)
-        if("data" !in biomesNBT) {
-            if(biomePalette.elements.size > 0) {
-                return SectionBiomeInformation(biomes = null, baseBiome = biomePalette.elements[0])
-            }
-            return SectionBiomeInformation()
-        } else {
-            biomes = Array(ChunkSection.BiomeArraySize) { Biome.UnknownBiome }
-            val ids = getUncompressedBiomeIndices(biomesNBT)
-            for ((index, id) in ids.withIndex()) {
-                biomes[index] = biomePalette.elements[id]
-            }
-            return SectionBiomeInformation(biomes = biomes, baseBiome = null)
-        }
-    }
 
-    //Also stolen from Minestoms nbt library
-    private fun getUncompressedBiomeIndices(biomesNBT: NBTCompound): IntArray {
-        val biomePalette = biomesNBT.getList<NBTString>("palette")!!
-        return if(biomePalette.size == 1) {
-            IntArray(ChunkSection.BiomeArraySize) { 0 }
-        } else {
-            val compressedBiomes = biomesNBT.getLongArray("data")!!
 
-            val sizeInBits = ceil(log2(biomePalette.size.toDouble())).toInt()
-            val intPerLong = 64 / sizeInBits
-            val expectedCompressedLength = ceil(ChunkSection.BiomeArraySize.toDouble() / intPerLong).toInt()
-            if (compressedBiomes.size != expectedCompressedLength) {
-                throw AnvilException("Invalid compressed biomes length (${compressedBiomes.size}). At $sizeInBits bit per value, expected $expectedCompressedLength bytes")
-            }
-            unpack(compressedBiomes, sizeInBits).sliceArray(0 until ChunkSection.BiomeArraySize)
-        }
-    }
+
 
     override fun saveChunk(chunk: Chunk): CompletableFuture<Void> {
         if (readOnly) return CompletableFuture.completedFuture(null)

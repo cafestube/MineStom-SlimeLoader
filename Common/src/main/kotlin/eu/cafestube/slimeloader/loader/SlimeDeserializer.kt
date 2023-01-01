@@ -40,16 +40,16 @@ fun loadSlimeFile(dataStream: DataInputStream): SlimeFile {
 
     val extraTag = NBTHelpers.readNBTTag<NBTCompound>(extraData)
 
-    val loader = SlimeChunkDeserializer(chunkData, tileEntitiesData, width, depth, chunkMinX, chunkMinZ, chunkMask)
+    val loader = SlimeChunkDeserializer(chunkData, tileEntitiesData, depth = depth, width = width, chunkMinX, chunkMinZ, chunkMask)
 
     return SlimeFile(
-        chunkMinX,
-        chunkMinZ,
-        width,
-        depth,
-        chunkMask,
-        extraTag,
-        loader.readChunks()
+        chunkMinX = chunkMinX,
+        chunkMinZ = chunkMinZ,
+        width = width,
+        depth = depth,
+        chunkMask = chunkMask,
+        extraTag = extraTag,
+        chunks = loader.readChunks()
     )
 }
 
