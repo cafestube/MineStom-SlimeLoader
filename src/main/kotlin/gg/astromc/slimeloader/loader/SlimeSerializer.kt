@@ -6,9 +6,7 @@ import net.minestom.server.instance.DynamicChunk
 import net.minestom.server.instance.Instance
 import net.minestom.server.instance.Section
 import net.minestom.server.instance.palette.Palette
-import org.jglrxavpok.hephaistos.nbt.NBT
 import org.jglrxavpok.hephaistos.nbt.NBT.Companion.Kompound
-import org.jglrxavpok.hephaistos.nbt.NBTCompound
 import org.jglrxavpok.hephaistos.nbt.NBTString
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream

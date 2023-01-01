@@ -1,11 +1,8 @@
 package gg.astromc.slimeloader.loader
 
 import com.github.luben.zstd.Zstd
-import gg.astromc.slimeloader.UnknownFileTypeException
-import gg.astromc.slimeloader.UnsupportedMinecraftVersionException
-import gg.astromc.slimeloader.UnsupportedSlimeVersionException
-import gg.astromc.slimeloader.helpers.ChunkHelpers.getChunkIndex
-import gg.astromc.slimeloader.helpers.NBTHelpers.readNBTTag
+import eu.cafestube.slimeloader.helpers.ChunkHelpers.getChunkIndex
+import eu.cafestube.slimeloader.loader.loadSlimeFile
 import gg.astromc.slimeloader.source.SlimeSource
 import net.minestom.server.MinecraftServer
 import net.minestom.server.instance.Chunk
@@ -26,72 +23,26 @@ import org.jglrxavpok.hephaistos.nbt.NBTString
 import org.jglrxavpok.hephaistos.nbt.NBTType
 import org.slf4j.LoggerFactory
 import java.io.DataInputStream
-import java.util.*
 import java.util.concurrent.CompletableFuture
 import kotlin.math.ceil
 import kotlin.math.log2
+
 
 class SlimeLoader(
     private val slimeSource: SlimeSource,
     private val readOnly: Boolean = false,
 ) : IChunkLoader {
 
-    private var extraTag: NBTCompound?
     private val logger = LoggerFactory.getLogger(SlimeLoader::class.java)
-
-    private val depth: Int
-    private val width: Int
-    private val chunkMinX: Short
-    private val chunkMinZ: Short
-    private val chunkMask: BitSet
-
-    private var chunkCache = mutableMapOf<Long, SlimeChunk>()
-
-    init {
-        val dataStream = DataInputStream(slimeSource.load())
-
-        // Checking some magic numbers
-        if (dataStream.readShort() != 0xB10B.toShort()) throw UnknownFileTypeException()
-        if (dataStream.readByte() < 0x09.toByte()) throw UnsupportedSlimeVersionException()
-        if (dataStream.readByte() < 0x07.toByte()) throw UnsupportedMinecraftVersionException()
-
-        // Loading map size
-        chunkMinX = dataStream.readShort()
-        chunkMinZ = dataStream.readShort()
-        width = dataStream.readUnsignedShort()
-        depth = dataStream.readUnsignedShort()
-
-
-        // Chunks
-        val chunkMaskSize = ceil((width * depth) / 8.0).toInt()
-        chunkMask = BitSet.valueOf(dataStream.readNBytes(chunkMaskSize))
-
-        // Loading raw data
-        val chunkData = loadRawData(dataStream)
-        val tileEntitiesData = loadRawData(dataStream)
-        if (dataStream.readBoolean()) loadRawData(dataStream) else ByteArray(0) // Skipping past entity data
-        val extraData = loadRawData(dataStream)
-
-        // Closing the data stream
-        dataStream.close()
-
-        this.extraTag = readNBTTag(extraData)
-
-        // Loading it all
-        loadChunks(chunkData, tileEntitiesData)
-    }
-
-    private fun loadChunks(chunkData: ByteArray, tileEntityData: ByteArray) {
-        val deserializer = SlimeDeserializer(chunkData, tileEntityData, depth, width, chunkMinX, chunkMinZ, chunkMask)
-        chunkCache = deserializer.readChunks().toMutableMap()
-    }
+    private val slimeFile = loadSlimeFile(DataInputStream(slimeSource.load()))
+    private val warnedBiomes = mutableSetOf<String>()
 
     override fun loadInstance(instance: Instance) {
-        instance.setTag(Tag.NBT("Data"), this.extraTag)
+        instance.setTag(Tag.NBT("Data"), this.slimeFile.extraTag)
     }
 
     override fun loadChunk(instance: Instance, chunkX: Int, chunkZ: Int): CompletableFuture<Chunk?> {
-        val slimeChunk = chunkCache[getChunkIndex(chunkX, chunkZ)] ?: return CompletableFuture.completedFuture(null)
+        val slimeChunk = slimeFile.chunks[getChunkIndex(chunkX, chunkZ)] ?: return CompletableFuture.completedFuture(null)
 
         val chunk = DynamicChunk(instance, chunkX, chunkZ)
         slimeChunk.sections.forEach { slimeSection ->
@@ -233,12 +184,14 @@ class SlimeLoader(
     }
 
     private fun warnAboutMissingBiome(biomeName: String) {
-        //TODO:
+        if(warnedBiomes.contains(biomeName)) return
+        logger.warn("Biome $biomeName is not registered, skipping")
+        warnedBiomes.add(biomeName)
     }
 
     //Method stolen from Minestoms nbt library thingy
     private fun readBiomes(biomesNBT: NBTCompound): SectionBiomeInformation {
-        var biomes: Array<String>? = null
+        var biomes: Array<String>?
         val paletteNBT = biomesNBT.getList<NBTString>("palette") ?: AnvilException.missing("biomes.palette")
         val biomePalette = BiomePalette(paletteNBT)
         if("data" !in biomesNBT) {

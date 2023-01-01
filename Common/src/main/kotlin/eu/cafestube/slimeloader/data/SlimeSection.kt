@@ -1,4 +1,4 @@
-package gg.astromc.slimeloader.loader
+package eu.cafestube.slimeloader.data
 
 import org.jglrxavpok.hephaistos.nbt.NBTCompound
 

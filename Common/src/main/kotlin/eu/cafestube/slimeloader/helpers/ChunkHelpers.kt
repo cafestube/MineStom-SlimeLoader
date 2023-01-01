@@ -1,4 +1,4 @@
-package gg.astromc.slimeloader.helpers
+package eu.cafestube.slimeloader.helpers
 
 object ChunkHelpers {
 

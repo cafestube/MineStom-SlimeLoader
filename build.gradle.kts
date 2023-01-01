@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "eu.cafestube"
-version = "1.0.1-SNAPSHOT"
+version = "1.0.2-SNAPSHOT"
 
 repositories {
     mavenCentral()
@@ -18,6 +18,8 @@ repositories {
 dependencies {
     implementation("com.github.Minestom:Minestom:809d9516b2")
     implementation("com.github.luben:zstd-jni:1.5.2-3")
+
+    api(project(":Common"))
 }
 
 val compileKotlin: KotlinCompile by tasks

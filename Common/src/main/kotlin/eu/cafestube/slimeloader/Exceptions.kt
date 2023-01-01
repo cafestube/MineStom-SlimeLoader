@@ -1,4 +1,4 @@
-package gg.astromc.slimeloader
+package eu.cafestube.slimeloader
 
 sealed class SlimeLoaderException(message: String) : Exception(message)
 
