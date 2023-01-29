@@ -13,20 +13,13 @@ import net.minestom.server.instance.Instance
 import net.minestom.server.instance.block.Block
 import net.minestom.server.tag.Tag
 import net.minestom.server.utils.NamespaceID
-import org.jglrxavpok.hephaistos.mca.AnvilException
-import org.jglrxavpok.hephaistos.mca.BiomePalette
-import org.jglrxavpok.hephaistos.mca.ChunkSection
-import org.jglrxavpok.hephaistos.mca.readers.SectionBiomeInformation
-import org.jglrxavpok.hephaistos.mca.unpack
-import org.jglrxavpok.hephaistos.mcdata.Biome
+import net.minestom.server.utils.chunk.ChunkUtils.*
 import org.jglrxavpok.hephaistos.nbt.NBTCompound
 import org.jglrxavpok.hephaistos.nbt.NBTString
 import org.jglrxavpok.hephaistos.nbt.NBTType
 import org.slf4j.LoggerFactory
 import java.io.DataInputStream
 import java.util.concurrent.CompletableFuture
-import kotlin.math.ceil
-import kotlin.math.log2
 
 
 class SlimeLoader(
@@ -43,14 +36,15 @@ class SlimeLoader(
     }
 
     override fun loadChunk(instance: Instance, chunkX: Int, chunkZ: Int): CompletableFuture<Chunk?> {
-        val slimeChunk = slimeFile.chunks[getChunkIndex(chunkX, chunkZ)] ?: return CompletableFuture.completedFuture(null)
+        val slimeChunk =
+            slimeFile.chunks[getChunkIndex(chunkX, chunkZ)] ?: return CompletableFuture.completedFuture(null)
 
         val chunk = DynamicChunk(instance, chunkX, chunkZ)
         slimeChunk.sections.forEach { slimeSection ->
-            val section = chunk.getSectionAt(slimeSection.index)
-            if(slimeSection.skyLight != null)
+            val section = chunk.sections[slimeSection.index]
+            if (slimeSection.skyLight != null)
                 section.skyLight = slimeSection.skyLight
-            if(slimeSection.blockLight != null) {
+            if (slimeSection.blockLight != null) {
                 section.blockLight = slimeSection.blockLight
             }
             val biomes = NBTHelpers.readBiomes(slimeSection.biomeTag)
@@ -58,14 +52,17 @@ class SlimeLoader(
             if (biomes.hasBiomeInformation()) {
                 if (biomes.isFilledWithSingleBiome()) {
                     val biome = MinecraftServer.getBiomeManager().getByName(NamespaceID.from(biomes.baseBiome!!))
-                    if(biome != null) {
+                    if (biome != null) {
                         for (y in 0 until Chunk.CHUNK_SECTION_SIZE) {
                             for (z in 0 until Chunk.CHUNK_SIZE_Z) {
                                 for (x in 0 until Chunk.CHUNK_SIZE_X) {
                                     val finalX = chunk.chunkX * Chunk.CHUNK_SIZE_X + x
                                     val finalZ = chunk.chunkZ * Chunk.CHUNK_SIZE_Z + z
-                                    val finalY: Int = slimeSection.index * Chunk.CHUNK_SECTION_SIZE + y
-                                    chunk.setBiome(finalX, finalY, finalZ, biome)
+
+                                    @Suppress("UnstableApiUsage")
+                                    section.biomePalette().set(toSectionRelativeCoordinate(finalX) / 4,
+                                        y, toSectionRelativeCoordinate(finalZ) / 4, biome.id()
+                                    )
                                 }
                             }
                         }
@@ -83,7 +80,7 @@ class SlimeLoader(
                                 val index = x / 4 + z / 4 * 4 + y / 4 * 16
                                 val biomeName: String = biomes.biomes!![index]
                                 val biome = MinecraftServer.getBiomeManager().getByName(NamespaceID.from(biomeName))
-                                if(biome == null) {
+                                if (biome == null) {
                                     warnAboutMissingBiome(biomeName)
                                     continue
                                 }
@@ -103,24 +100,26 @@ class SlimeLoader(
             for (i in convertedPalette.indices) {
                 val paletteEntry = blockPalette[i]
                 val blockName = paletteEntry.getString("Name")!!
-                if(blockName == "minecraft:air") {
+                if (blockName == "minecraft:air") {
                     convertedPalette[i] = Block.AIR
                     continue
                 } else {
                     val properties = HashMap<String, String>()
                     val propertiesNbt = paletteEntry.getCompound("Properties")
-                    if(propertiesNbt != null) {
+                    if (propertiesNbt != null) {
                         for ((key, value) in propertiesNbt) {
                             if (value.ID != NBTType.TAG_String) {
-                                logger.warn("Fail to parse block state properties {}, expected a TAG_String for {}, but contents were {}",
-                                    propertiesNbt, key, value.toSNBT())
+                                logger.warn(
+                                    "Fail to parse block state properties {}, expected a TAG_String for {}, but contents were {}",
+                                    propertiesNbt, key, value.toSNBT()
+                                )
                             } else {
                                 properties[key] = (value as NBTString).value
                             }
                         }
                     }
                     var block = Block.fromNamespaceId(NamespaceID.from(blockName))!!.let {
-                        if(properties.isNotEmpty()) {
+                        if (properties.isNotEmpty()) {
                             it.withProperties(properties)
                         } else {
                             it
@@ -139,16 +138,22 @@ class SlimeLoader(
                 for (z in 0 until Chunk.CHUNK_SECTION_SIZE) {
                     for (x in 0 until Chunk.CHUNK_SECTION_SIZE) {
                         try {
-                            val blockIndex = y * Chunk.CHUNK_SECTION_SIZE * Chunk.CHUNK_SECTION_SIZE + z * Chunk.CHUNK_SECTION_SIZE + x
+                            val blockIndex =
+                                y * Chunk.CHUNK_SECTION_SIZE * Chunk.CHUNK_SECTION_SIZE + z * Chunk.CHUNK_SECTION_SIZE + x
 
-                            if(blockData.size <= blockIndex) {
+                            if (blockData.size <= blockIndex) {
                                 continue
                             }
 
                             val paletteIndex: Int = blockData[blockIndex]
                             val block = convertedPalette[paletteIndex]
                             if (block != null) {
-                                chunk.setBlock(x, instance.dimensionType.minY + y + (Chunk.CHUNK_SECTION_SIZE * slimeSection.index), z, block)
+                                chunk.setBlock(
+                                    x,
+                                    instance.dimensionType.minY + y + (Chunk.CHUNK_SECTION_SIZE * slimeSection.index),
+                                    z,
+                                    block
+                                )
                             }
                         } catch (e: Exception) {
                             MinecraftServer.getExceptionManager().handleException(e)
@@ -163,13 +168,10 @@ class SlimeLoader(
 
 
     private fun warnAboutMissingBiome(biomeName: String) {
-        if(warnedBiomes.contains(biomeName)) return
+        if (warnedBiomes.contains(biomeName)) return
         logger.warn("Biome $biomeName is not registered, skipping")
         warnedBiomes.add(biomeName)
     }
-
-
-
 
 
     override fun saveChunk(chunk: Chunk): CompletableFuture<Void> {

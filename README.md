@@ -1,6 +1,6 @@
 # 🗺️ SlimeLoader
 
-Slime loader is a map loader & saver for the file format Slime as specified [here](SLIME_FORMAT.txt) implemented in Minestom.
+Slime loader is a map loader & saver for the file format Slime as specified [here](SLIME_FORMAT-v9.txt) implemented in Minestom.
 
 Features:
 ```

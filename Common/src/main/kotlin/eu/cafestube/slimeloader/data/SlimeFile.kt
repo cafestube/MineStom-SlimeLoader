@@ -9,8 +9,6 @@ class SlimeFile(
     val width: Int,
     val depth: Int,
 
-    val chunkMask: BitSet,
-
     val extraTag: NBTCompound?,
     val chunks: Map<Long, SlimeChunk>
 )

@@ -16,7 +16,48 @@ import kotlin.math.ceil
 fun loadSlimeFile(dataStream: DataInputStream): SlimeFile {
     // Checking some magic numbers
     if (dataStream.readShort() != 0xB10B.toShort()) throw UnknownFileTypeException()
-    if (dataStream.readByte() < 0x09.toByte()) throw UnsupportedSlimeVersionException()
+
+    return when(dataStream.readByte()) {
+        0x09.toByte() -> loadSlimeFileV9(dataStream)
+        10.toByte() -> loadSlimeFileV10(dataStream)
+
+        else -> throw UnsupportedSlimeVersionException()
+    }
+}
+
+fun loadSlimeFileV10(dataStream: DataInputStream): SlimeFile {
+    if (dataStream.readInt() < 7) throw UnsupportedMinecraftVersionException()
+    val chunks = loadRawData(dataStream)
+    val tileEntities = loadRawData(dataStream)
+    val entityNBT = loadRawData(dataStream)
+    val extraData = loadRawData(dataStream)
+
+    // Closing the data stream
+    dataStream.close()
+
+    val extraTag = NBTHelpers.readNBTTag<NBTCompound>(extraData)
+
+    val loader = SlimeChunkDeserializerV10(chunks)
+
+    val chunkData = loader.readChunks()
+
+    val minX = chunkData.entries.minOf { it.value.x }
+    val minZ = chunkData.entries.minOf { it.value.z }
+
+    val maxX = chunkData.entries.maxOf { it.value.x }
+    val maxZ = chunkData.entries.maxOf { it.value.z }
+
+    return SlimeFile(
+        chunkMinX = minX.toShort(),
+        chunkMinZ = minZ.toShort(),
+        width = maxX - minX,
+        depth = maxZ - minZ,
+        extraTag = extraTag,
+        chunks = chunkData
+    )
+}
+
+fun loadSlimeFileV9(dataStream: DataInputStream): SlimeFile {
     if (dataStream.readByte() < 0x07.toByte()) throw UnsupportedMinecraftVersionException()
 
     val chunkMinX: Short = dataStream.readShort()
@@ -40,20 +81,73 @@ fun loadSlimeFile(dataStream: DataInputStream): SlimeFile {
 
     val extraTag = NBTHelpers.readNBTTag<NBTCompound>(extraData)
 
-    val loader = SlimeChunkDeserializer(chunkData, tileEntitiesData, depth = depth, width = width, chunkMinX, chunkMinZ, chunkMask)
+    val loader = SlimeChunkDeserializerV9(chunkData, tileEntitiesData, depth = depth, width = width, chunkMinX, chunkMinZ, chunkMask)
 
     return SlimeFile(
         chunkMinX = chunkMinX,
         chunkMinZ = chunkMinZ,
         width = width,
         depth = depth,
-        chunkMask = chunkMask,
         extraTag = extraTag,
         chunks = loader.readChunks()
     )
 }
 
-private class SlimeChunkDeserializer(
+private class SlimeChunkDeserializerV10(val chunkData: ByteArray) {
+
+
+    val arraySize = 16 * 16 * 16 / (8 / 4) // blocks / bytes per block
+
+    fun readChunks(): Map<Long, SlimeChunk> {
+        val chunks = mutableListOf<SlimeChunk>()
+        val chunkDataStream = DataInputStream(ByteArrayInputStream(chunkData))
+
+        val size = chunkDataStream.readInt()
+
+        for (i in 0 until size) {
+            val chunkX = chunkDataStream.readInt()
+            val chunkZ = chunkDataStream.readInt()
+
+            val heightMapData = ByteArray(chunkDataStream.readInt())
+            chunkDataStream.read(heightMapData)
+            val heightMapNBT = NBTHelpers.readNBTTag(heightMapData) ?: NBTCompound()
+
+
+            val sections = readSections(chunkDataStream)
+
+            chunks.add(SlimeChunk(chunkX, chunkZ, sections, heightMapNBT))
+        }
+
+        return chunks.associateBy { ChunkHelpers.getChunkIndex(it.x, it.z) }
+    }
+
+    private fun readSections(chunkDataStream: DataInputStream): Array<SlimeSection> {
+        val sections: Array<SlimeSection> = Array(chunkDataStream.readInt()) { DUMMY_SECTION }
+
+
+        for(sectionId in sections.indices) {
+            val blockLightArray: ByteArray? = if (chunkDataStream.readBoolean()) {
+                ByteArray(arraySize).apply { chunkDataStream.read(this) }
+            } else null
+            val skyLightArray: ByteArray? = if (chunkDataStream.readBoolean()) {
+                ByteArray(arraySize).apply { chunkDataStream.read(this) }
+            } else null
+
+            val blockStateData = ByteArray(chunkDataStream.readInt()).apply { chunkDataStream.read(this) }
+            val blockStateTag = NBTHelpers.readNBTTag<NBTCompound>(blockStateData)!!
+
+            val biomeData = ByteArray(chunkDataStream.readInt()).apply { chunkDataStream.read(this) }
+            val biomeTag = NBTHelpers.readNBTTag<NBTCompound>(biomeData)!!
+
+            sections[sectionId] = SlimeSection(sectionId, blockStateTag, biomeTag, blockLightArray, skyLightArray)
+        }
+
+        return sections
+    }
+
+}
+
+private class SlimeChunkDeserializerV9(
     private val chunkData: ByteArray,
     private val tileEntityData: ByteArray,
     private val depth: Int,
@@ -100,18 +194,18 @@ private class SlimeChunkDeserializer(
 
         val readChunkSections = readChunkSections(chunkDataStream)
 
-        return SlimeChunk(chunkX, chunkZ, readChunkSections.sections, heightMapNBT, readChunkSections.minSection, readChunkSections.maxSection)
+        return SlimeChunk(chunkX, chunkZ, readChunkSections, heightMapNBT)
     }
 
-    private fun readChunkSections(dataStream: DataInputStream): SlimeSectionData {
-        val minSectionY = dataStream.readInt()
-        val maxSectionY = dataStream.readInt()
+    private fun readChunkSections(dataStream: DataInputStream): Array<SlimeSection> {
+        dataStream.readInt() // - minSectionY skipping
+        dataStream.readInt() // - maxSectionY skipping
         val sectionCount = dataStream.readInt()
 
         val sections = Array(sectionCount) { DUMMY_SECTION }
 
         for (chunkSection in 0 until sectionCount) {
-            val chunkY = dataStream.readInt()
+            dataStream.readInt() //ChunkY - skip
 
             var blockLightArray: ByteArray? = null
             if (dataStream.readBoolean()) {
@@ -133,11 +227,11 @@ private class SlimeChunkDeserializer(
                 dataStream.read(skyLightArray)
             }
 
-            val section = SlimeSection(chunkY, blockStateTag, biomeTag, blockLightArray, skyLightArray)
+            val section = SlimeSection(chunkSection, blockStateTag, biomeTag, blockLightArray, skyLightArray)
             sections[chunkSection] = section
         }
 
-        return SlimeSectionData(sections, minSectionY, maxSectionY)
+        return sections
     }
 
 
