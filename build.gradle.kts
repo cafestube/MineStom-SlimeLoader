@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "eu.cafestube"
-version = "1.0.3-SNAPSHOT"
+version = "1.0.4-SNAPSHOT"
 
 repositories {
     mavenCentral()
@@ -16,7 +16,7 @@ repositories {
 }
 
 dependencies {
-    implementation("com.github.Minestom:Minestom:1.19.3-SNAPSHOT")
+    implementation("dev.hollowcube:minestom-ce:438338381e")
     implementation("com.github.luben:zstd-jni:1.5.2-3")
 
     api(project(":Common"))

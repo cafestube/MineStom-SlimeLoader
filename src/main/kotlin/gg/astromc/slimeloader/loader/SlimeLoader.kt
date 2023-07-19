@@ -7,7 +7,6 @@ import eu.cafestube.slimeloader.loader.loadSlimeFile
 import gg.astromc.slimeloader.source.SlimeSource
 import net.minestom.server.MinecraftServer
 import net.minestom.server.instance.Chunk
-import net.minestom.server.instance.DynamicChunk
 import net.minestom.server.instance.IChunkLoader
 import net.minestom.server.instance.Instance
 import net.minestom.server.instance.block.Block
@@ -39,13 +38,13 @@ class SlimeLoader(
         val slimeChunk =
             slimeFile.chunks[getChunkIndex(chunkX, chunkZ)] ?: return CompletableFuture.completedFuture(null)
 
-        val chunk = DynamicChunk(instance, chunkX, chunkZ)
+        val chunk = instance.chunkSupplier.createChunk(instance, chunkX, chunkZ)
         slimeChunk.sections.forEach { slimeSection ->
             val section = chunk.sections[slimeSection.index]
             if (slimeSection.skyLight != null)
-                section.skyLight = slimeSection.skyLight
+                section.setSkyLight(slimeSection.skyLight)
             if (slimeSection.blockLight != null) {
-                section.blockLight = slimeSection.blockLight
+                section.setBlockLight(slimeSection.blockLight)
             }
             val biomes = NBTHelpers.readBiomes(slimeSection.biomeTag)
 
