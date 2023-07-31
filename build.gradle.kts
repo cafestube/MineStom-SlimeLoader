@@ -1,14 +1,14 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm") version "1.6.0"
+    kotlin("jvm") version "1.9.0"
 
     `maven-publish`
     `java-library`
 }
 
 group = "eu.cafestube"
-version = "1.0.4-SNAPSHOT"
+version = "1.0.5-SNAPSHOT"
 
 repositories {
     mavenCentral()
@@ -28,6 +28,11 @@ compileKotlin.kotlinOptions {
     freeCompilerArgs = listOf("-Xinline-classes")
     jvmTarget = "17"
 }
+
+kotlin {
+    jvmToolchain(17)
+}
+
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17

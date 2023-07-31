@@ -83,7 +83,11 @@ class SlimeLoader(
                                     warnAboutMissingBiome(biomeName)
                                     continue
                                 }
-                                chunk.setBiome(finalX, finalY, finalZ, biome)
+
+                                @Suppress("UnstableApiUsage")
+                                section.biomePalette().set(toSectionRelativeCoordinate(finalX) / 4,
+                                    y, toSectionRelativeCoordinate(finalZ) / 4, biome.id()
+                                )
                             }
                         }
                     }

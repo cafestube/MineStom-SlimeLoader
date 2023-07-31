@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "eu.cafestube"
-version = "1.0.3-SNAPSHOT"
+version = "1.0.4-SNAPSHOT"
 
 repositories {
     mavenCentral()
@@ -17,6 +17,10 @@ dependencies {
 
     implementation("com.github.luben:zstd-jni:1.5.2-3")
     implementation("io.github.jglrxavpok.hephaistos:common:2.5.3")
+}
+
+kotlin {
+    jvmToolchain(17)
 }
 
 tasks.getByName<Test>("test") {
