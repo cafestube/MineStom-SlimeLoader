@@ -3,7 +3,8 @@ package eu.cafestube.slimeloader.data
 import org.jglrxavpok.hephaistos.nbt.NBTCompound
 import java.util.*
 
-class SlimeFile(
+data class SlimeFile(
+    val worldVersion: Int,
     val chunkMinX: Short,
     val chunkMinZ: Short,
     val width: Int,

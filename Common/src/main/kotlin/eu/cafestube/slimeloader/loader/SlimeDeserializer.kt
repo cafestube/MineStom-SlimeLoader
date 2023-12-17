@@ -28,7 +28,7 @@ fun loadSlimeFile(dataStream: DataInputStream): SlimeFile {
 
 
 fun loadSlimeFileV11(dataStream: DataInputStream): SlimeFile {
-    if (dataStream.readInt() < 7) throw UnsupportedMinecraftVersionException()
+    val worldVersion = dataStream.readInt()
     val chunksRaw = loadRawData(dataStream)
     val extraData = loadRawData(dataStream)
 
@@ -47,6 +47,7 @@ fun loadSlimeFileV11(dataStream: DataInputStream): SlimeFile {
     val maxZ = chunks.entries.maxOf { it.value.z }
 
     return SlimeFile(
+        worldVersion = worldVersion,
         chunkMinX = minX.toShort(),
         chunkMinZ = minZ.toShort(),
         width = maxX - minX,
@@ -57,7 +58,7 @@ fun loadSlimeFileV11(dataStream: DataInputStream): SlimeFile {
 }
 
 fun loadSlimeFileV10(dataStream: DataInputStream): SlimeFile {
-    if (dataStream.readInt() < 7) throw UnsupportedMinecraftVersionException()
+    val worldVersion = dataStream.readInt()
     val chunks = loadRawData(dataStream)
     val tileEntities = loadRawData(dataStream)
     val entityNBT = loadRawData(dataStream)
@@ -79,6 +80,7 @@ fun loadSlimeFileV10(dataStream: DataInputStream): SlimeFile {
     val maxZ = chunkData.entries.maxOf { it.value.z }
 
     return SlimeFile(
+        worldVersion = worldVersion,
         chunkMinX = minX.toShort(),
         chunkMinZ = minZ.toShort(),
         width = maxX - minX,
@@ -89,7 +91,7 @@ fun loadSlimeFileV10(dataStream: DataInputStream): SlimeFile {
 }
 
 fun loadSlimeFileV9(dataStream: DataInputStream): SlimeFile {
-    if (dataStream.readByte() < 0x07.toByte()) throw UnsupportedMinecraftVersionException()
+    val worldVersion = dataStream.readInt()
 
     val chunkMinX: Short = dataStream.readShort()
     val chunkMinZ: Short = dataStream.readShort()
@@ -115,6 +117,7 @@ fun loadSlimeFileV9(dataStream: DataInputStream): SlimeFile {
     val loader = SlimeChunkDeserializerV9(tileEntitiesData, depth = depth, width = width, chunkMinX, chunkMinZ, chunkMask)
 
     return SlimeFile(
+        worldVersion = worldVersion,
         chunkMinX = chunkMinX,
         chunkMinZ = chunkMinZ,
         width = width,
