@@ -4,6 +4,8 @@ import com.github.luben.zstd.Zstd
 import eu.cafestube.slimeloader.helpers.ChunkHelpers.getChunkIndex
 import eu.cafestube.slimeloader.helpers.NBTHelpers
 import eu.cafestube.slimeloader.loader.loadSlimeFile
+import gg.astromc.slimeloader.data.NoOpSlimeFixer
+import gg.astromc.slimeloader.data.SlimeDataFixer
 import gg.astromc.slimeloader.source.SlimeSource
 import net.minestom.server.MinecraftServer
 import net.minestom.server.instance.Chunk
@@ -24,10 +26,11 @@ import java.util.concurrent.CompletableFuture
 class SlimeLoader(
     private val slimeSource: SlimeSource,
     private val readOnly: Boolean = false,
+    private val slimeDataFixer: SlimeDataFixer = NoOpSlimeFixer,
 ) : IChunkLoader {
 
     private val logger = LoggerFactory.getLogger(SlimeLoader::class.java)
-    private val slimeFile = loadSlimeFile(DataInputStream(slimeSource.load()))
+    private val slimeFile = slimeDataFixer.fixWorld(slimeSource.loadWorld())
     private val warnedBiomes = mutableSetOf<String>()
 
     override fun loadInstance(instance: Instance) {
