@@ -176,19 +176,19 @@ class SlimeChunkDeserializerV12 {
 
             val heightMapData = ByteArray(chunkDataStream.readInt())
             chunkDataStream.read(heightMapData)
-            val heightMapNBT = NBTHelpers.readNBTTag(heightMapData) ?: NBTCompound()
+            val heightMapNBT = if (heightMapData.isNotEmpty()) NBTHelpers.readNBTTag(heightMapData) ?: NBTCompound() else NBTCompound()
 
             val tileEntityData = ByteArray(chunkDataStream.readInt())
             chunkDataStream.read(tileEntityData)
-            val tileEntities = NBTHelpers.readNBTTag(tileEntityData) ?: NBTCompound()
+            val tileEntities = if(tileEntityData.isNotEmpty()) NBTHelpers.readNBTTag(tileEntityData) ?: NBTCompound() else NBTCompound()
 
             val entityData = ByteArray(chunkDataStream.readInt())
             chunkDataStream.read(entityData)
-            val entityNBT = NBTHelpers.readNBTTag(entityData) ?: NBTCompound()
+            val entityNBT = if(entityData.isNotEmpty()) NBTHelpers.readNBTTag(entityData) ?: NBTCompound() else NBTCompound()
 
             val extraData = ByteArray(chunkDataStream.readInt())
             chunkDataStream.read(extraData)
-            val extraNBT = NBTHelpers.readNBTTag(extraData) ?: NBTCompound()
+            val extraNBT = if(extraData.isNotEmpty()) NBTHelpers.readNBTTag(extraData) ?: NBTCompound() else NBTCompound()
 
             chunks.add(SlimeChunk(chunkX, chunkZ, sections, heightMapNBT, tileEntities, entityNBT, extraNBT))
         }
