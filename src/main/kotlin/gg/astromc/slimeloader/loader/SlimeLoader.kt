@@ -3,10 +3,13 @@ package gg.astromc.slimeloader.loader
 import com.github.luben.zstd.Zstd
 import eu.cafestube.slimeloader.helpers.ChunkHelpers.getChunkIndex
 import eu.cafestube.slimeloader.helpers.NBTHelpers
-import eu.cafestube.slimeloader.loader.loadSlimeFile
+import eu.cafestube.slimeloader.helpers.NBTHelpers.getUncompressedBiomeIndices
 import gg.astromc.slimeloader.data.NoOpSlimeFixer
 import gg.astromc.slimeloader.data.SlimeDataFixer
 import gg.astromc.slimeloader.source.SlimeSource
+import net.kyori.adventure.nbt.BinaryTagTypes
+import net.kyori.adventure.nbt.ListBinaryTag
+import net.kyori.adventure.nbt.StringBinaryTag
 import net.minestom.server.MinecraftServer
 import net.minestom.server.instance.Chunk
 import net.minestom.server.instance.IChunkLoader
@@ -15,9 +18,6 @@ import net.minestom.server.instance.block.Block
 import net.minestom.server.tag.Tag
 import net.minestom.server.utils.NamespaceID
 import net.minestom.server.utils.chunk.ChunkUtils.*
-import org.jglrxavpok.hephaistos.nbt.NBTCompound
-import org.jglrxavpok.hephaistos.nbt.NBTString
-import org.jglrxavpok.hephaistos.nbt.NBTType
 import org.slf4j.LoggerFactory
 import java.io.DataInputStream
 import java.util.concurrent.CompletableFuture
@@ -38,8 +38,7 @@ class SlimeLoader(
     }
 
     override fun loadChunk(instance: Instance, chunkX: Int, chunkZ: Int): CompletableFuture<Chunk?> {
-        val slimeChunk =
-            slimeFile.chunks[getChunkIndex(chunkX, chunkZ)] ?: return CompletableFuture.completedFuture(null)
+        val slimeChunk = slimeFile.chunks[getChunkIndex(chunkX, chunkZ)] ?: return CompletableFuture.completedFuture(null)
 
         val chunk = instance.chunkSupplier.createChunk(instance, chunkX, chunkZ)
         slimeChunk.sections.forEach { slimeSection ->
@@ -49,79 +48,45 @@ class SlimeLoader(
             if (slimeSection.blockLight != null) {
                 section.setBlockLight(slimeSection.blockLight)
             }
-            val biomes = NBTHelpers.readBiomes(slimeSection.biomeTag)
 
-            if (biomes.hasBiomeInformation()) {
-                if (biomes.isFilledWithSingleBiome()) {
-                    val biome = MinecraftServer.getBiomeManager().getByName(NamespaceID.from(biomes.baseBiome!!))
-                    if (biome != null) {
-                        for (y in 0 until Chunk.CHUNK_SECTION_SIZE) {
-                            for (z in 0 until Chunk.CHUNK_SIZE_Z) {
-                                for (x in 0 until Chunk.CHUNK_SIZE_X) {
-                                    val finalX = chunk.chunkX * Chunk.CHUNK_SIZE_X + x
-                                    val finalZ = chunk.chunkZ * Chunk.CHUNK_SIZE_Z + z
 
-                                    @Suppress("UnstableApiUsage")
-                                    section.biomePalette().set(toSectionRelativeCoordinate(finalX) / 4,
-                                        y, toSectionRelativeCoordinate(finalZ) / 4, biome.id()
-                                    )
-                                }
-                            }
-                        }
-                    } else {
-                        warnAboutMissingBiome(biomes.baseBiome!!)
-                    }
+            val biomes = convertPalette(slimeSection.biomeTag.getList("palette"))
 
+            if (biomes.isNotEmpty()) {
+                if (biomes.size == 1) {
+                    section.biomePalette().fill(biomes.first())
                 } else {
-                    for (y in 0 until Chunk.CHUNK_SECTION_SIZE) {
-                        for (z in 0 until Chunk.CHUNK_SIZE_Z) {
-                            for (x in 0 until Chunk.CHUNK_SIZE_X) {
-                                val finalX = chunk.chunkX * Chunk.CHUNK_SIZE_X + x
-                                val finalZ = chunk.chunkZ * Chunk.CHUNK_SIZE_Z + z
-                                val finalY: Int = slimeSection.index * Chunk.CHUNK_SECTION_SIZE + y
-                                val index = x / 4 + z / 4 * 4 + y / 4 * 16
-                                val biomeName: String = biomes.biomes!![index]
-                                val biome = MinecraftServer.getBiomeManager().getByName(NamespaceID.from(biomeName))
-                                if (biome == null) {
-                                    warnAboutMissingBiome(biomeName)
-                                    continue
-                                }
-
-                                @Suppress("UnstableApiUsage")
-                                section.biomePalette().set(toSectionRelativeCoordinate(finalX) / 4,
-                                    y, toSectionRelativeCoordinate(finalZ) / 4, biome.id()
-                                )
-                            }
-                        }
+                    val ids = getUncompressedBiomeIndices(slimeSection.biomeTag)
+                    section.biomePalette().setAll { xx, yx, zx ->
+                        val index: Int = xx + zx * 4 + yx * 16
+                        biomes[ids[index]]
                     }
                 }
             }
 
             //Blocks
             val blocks = slimeSection.blockStateTag
-            val blockPalette = blocks.getList<NBTCompound>("palette")
+            val blockPalette = blocks.getList("palette")
             val blockData = NBTHelpers.loadBlockData(blocks)
 
-            val convertedPalette = arrayOfNulls<Block>(blockPalette!!.size)
+            val convertedPalette = arrayOfNulls<Block>(blockPalette.size())
             for (i in convertedPalette.indices) {
-                val paletteEntry = blockPalette[i]
-                val blockName = paletteEntry.getString("Name")!!
+                val paletteEntry = blockPalette.getCompound(i)
+                val blockName = paletteEntry.getString("Name")
                 if (blockName == "minecraft:air") {
                     convertedPalette[i] = Block.AIR
                     continue
                 } else {
                     val properties = HashMap<String, String>()
                     val propertiesNbt = paletteEntry.getCompound("Properties")
-                    if (propertiesNbt != null) {
-                        for ((key, value) in propertiesNbt) {
-                            if (value.ID != NBTType.TAG_String) {
-                                logger.warn(
-                                    "Fail to parse block state properties {}, expected a TAG_String for {}, but contents were {}",
-                                    propertiesNbt, key, value.toSNBT()
-                                )
-                            } else {
-                                properties[key] = (value as NBTString).value
-                            }
+                    for ((key, value) in propertiesNbt) {
+                        if (value.type() != BinaryTagTypes.STRING) {
+                            logger.warn(
+                                "Fail to parse block state properties {}, expected a TAG_String for {}, but contents were {}",
+                                propertiesNbt, key, value
+                            )
+                        } else {
+                            properties[key] = (value as StringBinaryTag).value()
                         }
                     }
                     var block = Block.fromNamespaceId(NamespaceID.from(blockName))!!.let {
@@ -139,6 +104,7 @@ class SlimeLoader(
                 }
             }
 
+            val dimensionType = MinecraftServer.getDimensionTypeRegistry().get(instance.dimensionType)!!
 
             for (y in 0 until Chunk.CHUNK_SECTION_SIZE) {
                 for (z in 0 until Chunk.CHUNK_SECTION_SIZE) {
@@ -156,7 +122,7 @@ class SlimeLoader(
                             if (block != null) {
                                 chunk.setBlock(
                                     x,
-                                    instance.dimensionType.minY + y + (Chunk.CHUNK_SECTION_SIZE * slimeSection.index),
+                                    dimensionType.minY() + y + (Chunk.CHUNK_SECTION_SIZE * slimeSection.index),
                                     z,
                                     block
                                 )
@@ -170,6 +136,22 @@ class SlimeLoader(
         }
 
         return CompletableFuture.completedFuture(chunk)
+    }
+
+    private fun convertPalette(list: ListBinaryTag): IntArray {
+        val convertedPalette = IntArray(list.size())
+
+        for (i in convertedPalette.indices) {
+            val name: String = list.getString(i)
+            var biomeId = MinecraftServer.getBiomeRegistry().getId(NamespaceID.from(name))
+            if (biomeId == -1) {
+                biomeId = MinecraftServer.getBiomeRegistry().getId(NamespaceID.from("minecraft", "plains"))
+            }
+
+            convertedPalette[i] = biomeId
+        }
+
+        return convertedPalette
     }
 
 

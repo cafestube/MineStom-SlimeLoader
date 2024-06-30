@@ -2,12 +2,11 @@ package eu.cafestube.slimeloader.loader
 
 import com.github.luben.zstd.Zstd
 import eu.cafestube.slimeloader.UnknownFileTypeException
-import eu.cafestube.slimeloader.UnsupportedMinecraftVersionException
 import eu.cafestube.slimeloader.UnsupportedSlimeVersionException
 import eu.cafestube.slimeloader.data.*
 import eu.cafestube.slimeloader.helpers.ChunkHelpers
 import eu.cafestube.slimeloader.helpers.NBTHelpers
-import org.jglrxavpok.hephaistos.nbt.NBTCompound
+import net.kyori.adventure.nbt.CompoundBinaryTag
 import java.io.ByteArrayInputStream
 import java.io.DataInputStream
 import java.util.*
@@ -35,7 +34,7 @@ fun loadSlimeFileV12(dataStream: DataInputStream): SlimeFile {
     // Closing the data stream
     dataStream.close()
 
-    val extraTag = NBTHelpers.readNBTTag<NBTCompound>(extraData)
+    val extraTag = NBTHelpers.readNBTTag<CompoundBinaryTag>(extraData)
     val loader = SlimeChunkDeserializerV12()
 
     val chunks = loader.readChunks(chunksRaw)
@@ -66,7 +65,7 @@ fun loadSlimeFileV11(dataStream: DataInputStream): SlimeFile {
     // Closing the data stream
     dataStream.close()
 
-    val extraTag = NBTHelpers.readNBTTag<NBTCompound>(extraData)
+    val extraTag = NBTHelpers.readNBTTag<CompoundBinaryTag>(extraData)
     val loader = SlimeChunkDeserializerV11()
 
     val chunks = loader.readChunks(chunksRaw)
@@ -98,7 +97,7 @@ fun loadSlimeFileV10(dataStream: DataInputStream): SlimeFile {
     // Closing the data stream
     dataStream.close()
 
-    val extraTag = NBTHelpers.readNBTTag<NBTCompound>(extraData)
+    val extraTag = NBTHelpers.readNBTTag<CompoundBinaryTag>(extraData)
 
     val loader = SlimeChunkDeserializerV10()
 
@@ -143,7 +142,7 @@ fun loadSlimeFileV9(dataStream: DataInputStream): SlimeFile {
     dataStream.close()
 
 
-    val extraTag = NBTHelpers.readNBTTag<NBTCompound>(extraData)
+    val extraTag = NBTHelpers.readNBTTag<CompoundBinaryTag>(extraData)
 
     val loader = SlimeChunkDeserializerV9(tileEntitiesData, depth = depth, width = width, chunkMinX, chunkMinZ, chunkMask)
 
@@ -176,19 +175,18 @@ class SlimeChunkDeserializerV12 {
 
             val heightMapData = ByteArray(chunkDataStream.readInt())
             chunkDataStream.read(heightMapData)
-            val heightMapNBT = if (heightMapData.isNotEmpty()) NBTHelpers.readNBTTag(heightMapData) ?: NBTCompound() else NBTCompound()
+            val heightMapNBT = if (heightMapData.isNotEmpty()) NBTHelpers.readNBTTag(heightMapData) ?: CompoundBinaryTag.empty() else CompoundBinaryTag.empty()
 
             val tileEntityData = ByteArray(chunkDataStream.readInt())
             chunkDataStream.read(tileEntityData)
-            val tileEntities = if(tileEntityData.isNotEmpty()) NBTHelpers.readNBTTag(tileEntityData) ?: NBTCompound() else NBTCompound()
+            val tileEntities = if(tileEntityData.isNotEmpty()) NBTHelpers.readNBTTag(tileEntityData) ?: CompoundBinaryTag.empty() else CompoundBinaryTag.empty()
 
             val entityData = ByteArray(chunkDataStream.readInt())
             chunkDataStream.read(entityData)
-            val entityNBT = if(entityData.isNotEmpty()) NBTHelpers.readNBTTag(entityData) ?: NBTCompound() else NBTCompound()
-
+            val entityNBT = if(entityData.isNotEmpty()) NBTHelpers.readNBTTag(entityData) ?: CompoundBinaryTag.empty() else CompoundBinaryTag.empty()
             val extraData = ByteArray(chunkDataStream.readInt())
             chunkDataStream.read(extraData)
-            val extraNBT = if(extraData.isNotEmpty()) NBTHelpers.readNBTTag(extraData) ?: NBTCompound() else NBTCompound()
+            val extraNBT = if(extraData.isNotEmpty()) NBTHelpers.readNBTTag(extraData) ?: CompoundBinaryTag.empty() else CompoundBinaryTag.empty()
 
             chunks.add(SlimeChunk(chunkX, chunkZ, sections, heightMapNBT, tileEntities, entityNBT, extraNBT))
         }
@@ -209,10 +207,10 @@ class SlimeChunkDeserializerV12 {
             } else null
 
             val blockStateData = ByteArray(chunkDataStream.readInt()).apply { chunkDataStream.read(this) }
-            val blockStateTag = NBTHelpers.readNBTTag<NBTCompound>(blockStateData)!!
+            val blockStateTag = NBTHelpers.readNBTTag<CompoundBinaryTag>(blockStateData)!!
 
             val biomeData = ByteArray(chunkDataStream.readInt()).apply { chunkDataStream.read(this) }
-            val biomeTag = NBTHelpers.readNBTTag<NBTCompound>(biomeData)!!
+            val biomeTag = NBTHelpers.readNBTTag<CompoundBinaryTag>(biomeData)!!
 
             sections[sectionId] = SlimeSection(sectionId, blockStateTag, biomeTag, blockLightArray, skyLightArray)
         }
@@ -240,12 +238,12 @@ class SlimeChunkDeserializerV11 {
 
             val heightMapData = ByteArray(chunkDataStream.readInt())
             chunkDataStream.read(heightMapData)
-            val heightMapNBT = NBTHelpers.readNBTTag(heightMapData) ?: NBTCompound()
+            val heightMapNBT = NBTHelpers.readNBTTag(heightMapData) ?: CompoundBinaryTag.empty()
 
-            val tileEntities = NBTHelpers.readNBTTag<NBTCompound>(loadRawData(chunkDataStream)) ?: NBTCompound()
-            val entityNBT = NBTHelpers.readNBTTag<NBTCompound>(loadRawData(chunkDataStream)) ?: NBTCompound()
+            val tileEntities = NBTHelpers.readNBTTag<CompoundBinaryTag>(loadRawData(chunkDataStream)) ?: CompoundBinaryTag.empty()
+            val entityNBT = NBTHelpers.readNBTTag<CompoundBinaryTag>(loadRawData(chunkDataStream)) ?: CompoundBinaryTag.empty()
 
-            chunks.add(SlimeChunk(chunkX, chunkZ, sections, heightMapNBT, tileEntities, entityNBT, NBTCompound()))
+            chunks.add(SlimeChunk(chunkX, chunkZ, sections, heightMapNBT, tileEntities, entityNBT, CompoundBinaryTag.empty()))
         }
 
         return chunks.associateBy { ChunkHelpers.getChunkIndex(it.x, it.z) }
@@ -264,10 +262,10 @@ class SlimeChunkDeserializerV11 {
             } else null
 
             val blockStateData = ByteArray(chunkDataStream.readInt()).apply { chunkDataStream.read(this) }
-            val blockStateTag = NBTHelpers.readNBTTag<NBTCompound>(blockStateData)!!
+            val blockStateTag = NBTHelpers.readNBTTag<CompoundBinaryTag>(blockStateData)!!
 
             val biomeData = ByteArray(chunkDataStream.readInt()).apply { chunkDataStream.read(this) }
-            val biomeTag = NBTHelpers.readNBTTag<NBTCompound>(biomeData)!!
+            val biomeTag = NBTHelpers.readNBTTag<CompoundBinaryTag>(biomeData)!!
 
             sections[sectionId] = SlimeSection(sectionId, blockStateTag, biomeTag, blockLightArray, skyLightArray)
         }
@@ -294,12 +292,12 @@ private class SlimeChunkDeserializerV10 {
 
             val heightMapData = ByteArray(chunkDataStream.readInt())
             chunkDataStream.read(heightMapData)
-            val heightMapNBT = NBTHelpers.readNBTTag(heightMapData) ?: NBTCompound()
+            val heightMapNBT = NBTHelpers.readNBTTag(heightMapData) ?: CompoundBinaryTag.empty()
 
 
             val sections = readSections(chunkDataStream)
 
-            chunks.add(SlimeChunk(chunkX, chunkZ, sections, heightMapNBT, NBTCompound(), NBTCompound(), NBTCompound()))
+            chunks.add(SlimeChunk(chunkX, chunkZ, sections, heightMapNBT, CompoundBinaryTag.empty(), CompoundBinaryTag.empty(), CompoundBinaryTag.empty()))
         }
 
         chunkDataStream.close()
@@ -320,10 +318,10 @@ private class SlimeChunkDeserializerV10 {
             } else null
 
             val blockStateData = ByteArray(chunkDataStream.readInt()).apply { chunkDataStream.read(this) }
-            val blockStateTag = NBTHelpers.readNBTTag<NBTCompound>(blockStateData)!!
+            val blockStateTag = NBTHelpers.readNBTTag<CompoundBinaryTag>(blockStateData)!!
 
             val biomeData = ByteArray(chunkDataStream.readInt()).apply { chunkDataStream.read(this) }
-            val biomeTag = NBTHelpers.readNBTTag<NBTCompound>(biomeData)!!
+            val biomeTag = NBTHelpers.readNBTTag<CompoundBinaryTag>(biomeData)!!
 
             sections[sectionId] = SlimeSection(sectionId, blockStateTag, biomeTag, blockLightArray, skyLightArray)
         }
@@ -375,11 +373,11 @@ private class SlimeChunkDeserializerV9(
         val heightMapSize = chunkDataStream.readInt()
         val heightMap = ByteArray(heightMapSize)
         chunkDataStream.read(heightMap)
-        val heightMapNBT = NBTHelpers.readNBTTag(heightMap) ?: NBTCompound()
+        val heightMapNBT = NBTHelpers.readNBTTag(heightMap) ?: CompoundBinaryTag.empty()
 
         val readChunkSections = readChunkSections(chunkDataStream)
 
-        return SlimeChunk(chunkX, chunkZ, readChunkSections, heightMapNBT, NBTCompound(), NBTCompound(), NBTCompound())
+        return SlimeChunk(chunkX, chunkZ, readChunkSections, heightMapNBT, CompoundBinaryTag.empty(), CompoundBinaryTag.empty(), CompoundBinaryTag.empty())
     }
 
     private fun readChunkSections(dataStream: DataInputStream): Array<SlimeSection> {
@@ -400,11 +398,11 @@ private class SlimeChunkDeserializerV9(
 
             val blockStateData = ByteArray(dataStream.readInt())
             dataStream.read(blockStateData)
-            val blockStateTag = NBTHelpers.readNBTTag<NBTCompound>(blockStateData)!!
+            val blockStateTag = NBTHelpers.readNBTTag<CompoundBinaryTag>(blockStateData)!!
 
             val biomeData = ByteArray(dataStream.readInt())
             dataStream.read(biomeData)
-            val biomeTag = NBTHelpers.readNBTTag<NBTCompound>(biomeData)!!
+            val biomeTag = NBTHelpers.readNBTTag<CompoundBinaryTag>(biomeData)!!
 
             var skyLightArray: ByteArray? = null
             if (dataStream.readBoolean()) {

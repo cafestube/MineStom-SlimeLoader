@@ -16,11 +16,11 @@ dependencies {
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.9.0")
 
     implementation("com.github.luben:zstd-jni:1.5.2-3")
-    implementation("io.github.jglrxavpok.hephaistos:common:2.5.3")
+    implementation("net.kyori:adventure-nbt:4.17.0")
 }
 
 kotlin {
-    jvmToolchain(17)
+    jvmToolchain(21)
 }
 
 tasks.getByName<Test>("test") {

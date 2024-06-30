@@ -1,7 +1,6 @@
 package eu.cafestube.slimeloader.data
 
-import org.jglrxavpok.hephaistos.nbt.NBTCompound
-import java.util.*
+import net.kyori.adventure.nbt.CompoundBinaryTag
 
 data class SlimeFile(
     val worldVersion: Int,
@@ -10,6 +9,6 @@ data class SlimeFile(
     val width: Int,
     val depth: Int,
 
-    val extraTag: NBTCompound?,
+    val extraTag: CompoundBinaryTag?,
     val chunks: Map<Long, SlimeChunk>
 )

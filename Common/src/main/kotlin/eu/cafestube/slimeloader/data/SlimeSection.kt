@@ -1,7 +1,8 @@
 package eu.cafestube.slimeloader.data
 
-import org.jglrxavpok.hephaistos.nbt.NBTCompound
+import net.kyori.adventure.nbt.CompoundBinaryTag
 
-val DUMMY_SECTION = SlimeSection(0, NBTCompound(), NBTCompound(), null, null)
 
-data class SlimeSection(val index: Int, val blockStateTag: NBTCompound, val biomeTag: NBTCompound, val blockLight: ByteArray?, val skyLight: ByteArray?)
+val DUMMY_SECTION = SlimeSection(0, CompoundBinaryTag.empty(), CompoundBinaryTag.empty(), null, null)
+
+data class SlimeSection(val index: Int, val blockStateTag: CompoundBinaryTag, val biomeTag: CompoundBinaryTag, val blockLight: ByteArray?, val skyLight: ByteArray?)
