@@ -10,6 +10,8 @@ import net.kyori.adventure.nbt.CompoundBinaryTag
 import java.io.ByteArrayInputStream
 import java.io.DataInputStream
 import java.util.*
+import kotlin.collections.ArrayList
+import kotlin.collections.HashMap
 import kotlin.math.ceil
 
 fun loadSlimeFile(dataStream: DataInputStream): SlimeFile {
@@ -162,12 +164,13 @@ class SlimeChunkDeserializerV12 {
     private val arraySize = 16 * 16 * 16 / (8 / 4) // blocks / bytes per block
 
     fun readChunks(chunkData: ByteArray): Map<Long, SlimeChunk> {
-        val chunks = mutableListOf<SlimeChunk>()
         val chunkDataStream = DataInputStream(ByteArrayInputStream(chunkData))
 
         val size = chunkDataStream.readInt()
+        val chunks = HashMap<Long, SlimeChunk>(size)
 
         for (i in 0 until size) {
+
             val chunkX = chunkDataStream.readInt()
             val chunkZ = chunkDataStream.readInt()
 
@@ -188,15 +191,15 @@ class SlimeChunkDeserializerV12 {
             chunkDataStream.read(extraData)
             val extraNBT = if(extraData.isNotEmpty()) NBTHelpers.readNBTTag(extraData) ?: CompoundBinaryTag.empty() else CompoundBinaryTag.empty()
 
-            chunks.add(SlimeChunk(chunkX, chunkZ, sections, heightMapNBT, tileEntities, entityNBT, extraNBT))
+            val chunk = SlimeChunk(chunkX, chunkZ, sections, heightMapNBT, tileEntities, entityNBT, extraNBT)
+            chunks[ChunkHelpers.getChunkIndex(chunkX, chunkZ)] = chunk
         }
 
-        return chunks.associateBy { ChunkHelpers.getChunkIndex(it.x, it.z) }
+        return chunks
     }
 
     private fun readSections(chunkDataStream: DataInputStream): Array<SlimeSection> {
         val sections: Array<SlimeSection> = Array(chunkDataStream.readInt()) { DUMMY_SECTION }
-
 
         for(sectionId in sections.indices) {
             val blockLightArray: ByteArray? = if (chunkDataStream.readBoolean()) {
@@ -225,10 +228,10 @@ class SlimeChunkDeserializerV11 {
     private val arraySize = 16 * 16 * 16 / (8 / 4) // blocks / bytes per block
 
     fun readChunks(chunkData: ByteArray): Map<Long, SlimeChunk> {
-        val chunks = mutableListOf<SlimeChunk>()
         val chunkDataStream = DataInputStream(ByteArrayInputStream(chunkData))
 
         val size = chunkDataStream.readInt()
+        val chunks = HashMap<Long, SlimeChunk>(size)
 
         for (i in 0 until size) {
             val chunkX = chunkDataStream.readInt()
@@ -243,10 +246,11 @@ class SlimeChunkDeserializerV11 {
             val tileEntities = NBTHelpers.readNBTTag<CompoundBinaryTag>(loadRawData(chunkDataStream)) ?: CompoundBinaryTag.empty()
             val entityNBT = NBTHelpers.readNBTTag<CompoundBinaryTag>(loadRawData(chunkDataStream)) ?: CompoundBinaryTag.empty()
 
-            chunks.add(SlimeChunk(chunkX, chunkZ, sections, heightMapNBT, tileEntities, entityNBT, CompoundBinaryTag.empty()))
+            chunks[ChunkHelpers.getChunkIndex(chunkX, chunkZ)] = SlimeChunk(chunkX, chunkZ, sections,
+                heightMapNBT, tileEntities, entityNBT, CompoundBinaryTag.empty())
         }
 
-        return chunks.associateBy { ChunkHelpers.getChunkIndex(it.x, it.z) }
+        return chunks
     }
 
     private fun readSections(chunkDataStream: DataInputStream): Array<SlimeSection> {
@@ -281,10 +285,10 @@ private class SlimeChunkDeserializerV10 {
     val arraySize = 16 * 16 * 16 / (8 / 4) // blocks / bytes per block
 
     fun readChunks(chunkData: ByteArray): Map<Long, SlimeChunk> {
-        val chunks = mutableListOf<SlimeChunk>()
         val chunkDataStream = DataInputStream(ByteArrayInputStream(chunkData))
 
         val size = chunkDataStream.readInt()
+        val chunks = HashMap<Long, SlimeChunk>(size)
 
         for (i in 0 until size) {
             val chunkX = chunkDataStream.readInt()
@@ -297,12 +301,13 @@ private class SlimeChunkDeserializerV10 {
 
             val sections = readSections(chunkDataStream)
 
-            chunks.add(SlimeChunk(chunkX, chunkZ, sections, heightMapNBT, CompoundBinaryTag.empty(), CompoundBinaryTag.empty(), CompoundBinaryTag.empty()))
+            chunks[ChunkHelpers.getChunkIndex(chunkX, chunkZ)] = SlimeChunk(chunkX, chunkZ, sections,
+                heightMapNBT, CompoundBinaryTag.empty(), CompoundBinaryTag.empty(), CompoundBinaryTag.empty())
         }
 
         chunkDataStream.close()
 
-        return chunks.associateBy { ChunkHelpers.getChunkIndex(it.x, it.z) }
+        return chunks
     }
 
     private fun readSections(chunkDataStream: DataInputStream): Array<SlimeSection> {

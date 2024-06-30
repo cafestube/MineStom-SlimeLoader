@@ -12,13 +12,11 @@ import kotlin.math.log2
 
 object NBTHelpers {
 
-    private const val BlockStateSize = 16*16*16
     private const val BiomeArraySize = 4*4*4
 
     inline fun <reified T : BinaryTag> readNBTTag(bytes: ByteArray): T?
             = BinaryTagIO.reader(Long.MAX_VALUE).read(ByteArrayInputStream(bytes), BinaryTagIO.Compression.NONE) as? T
 
-    
     //Also stolen from Minestoms nbt library
     fun getUncompressedBiomeIndices(biomesNBT: CompoundBinaryTag): IntArray {
         val biomePalette = biomesNBT.getList("palette")
