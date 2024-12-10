@@ -8,15 +8,14 @@ plugins {
 }
 
 group = "eu.cafestube"
-version = "1.1.0-SNAPSHOT"
+version = "1.2.0-SNAPSHOT"
 
 repositories {
     mavenCentral()
-    maven("https://jitpack.io")
 }
 
 dependencies {
-    implementation("net.minestom:minestom-snapshots:435534368b")
+    implementation("net.minestom:minestom-snapshots:d760a60a5c")
     implementation("com.github.luben:zstd-jni:1.5.2-3")
 
     api(project(":Common"))

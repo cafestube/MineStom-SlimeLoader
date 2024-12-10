@@ -37,8 +37,8 @@ class SlimeLoader(
         instance.setTag(Tag.NBT("Data"), this.slimeFile.extraTag)
     }
 
-    override fun loadChunk(instance: Instance, chunkX: Int, chunkZ: Int): CompletableFuture<Chunk?> {
-        val slimeChunk = slimeFile.chunks[getChunkIndex(chunkX, chunkZ)] ?: return CompletableFuture.completedFuture(null)
+    override fun loadChunk(instance: Instance, chunkX: Int, chunkZ: Int): Chunk? {
+        val slimeChunk = slimeFile.chunks[getChunkIndex(chunkX, chunkZ)] ?: return null
 
         val chunk = instance.chunkSupplier.createChunk(instance, chunkX, chunkZ)
         slimeChunk.sections.forEach { slimeSection ->
@@ -135,7 +135,7 @@ class SlimeLoader(
             }
         }
 
-        return CompletableFuture.completedFuture(chunk)
+        return chunk
     }
 
     private fun convertPalette(list: ListBinaryTag): IntArray {
@@ -162,15 +162,14 @@ class SlimeLoader(
     }
 
 
-    override fun saveChunk(chunk: Chunk): CompletableFuture<Void> {
-        if (readOnly) return CompletableFuture.completedFuture(null)
+    override fun saveChunk(chunk: Chunk) {
+        if (readOnly) return
         //TODO: Create slime chunk from chunk
 //        chunkCache[getChunkIndex(chunk.chunkX, chunk.chunkZ)] = chunk
-        return CompletableFuture.completedFuture(null)
     }
 
-    override fun saveInstance(instance: Instance): CompletableFuture<Void> {
-        if (readOnly) return CompletableFuture.completedFuture(null)
+    override fun saveInstance(instance: Instance) {
+        if (readOnly) return
 
 //        val outputStream = slimeSource.save()
 //        val dataOutputStream = DataOutputStream(outputStream)
@@ -179,7 +178,6 @@ class SlimeLoader(
 //        val serializer = SlimeSerializer()
 //        serializer.serialize(dataOutputStream, instance, chunkCache.values.toList())
 
-        return CompletableFuture.completedFuture(null)
     }
 
     private fun loadRawData(dataStream: DataInputStream): ByteArray {
