@@ -8,14 +8,14 @@ plugins {
 }
 
 group = "eu.cafestube"
-version = "1.2.0-SNAPSHOT"
+version = "1.3.0-SNAPSHOT"
 
 repositories {
     mavenCentral()
 }
 
 dependencies {
-    implementation("net.minestom:minestom-snapshots:d760a60a5c")
+    implementation("net.minestom:minestom-snapshots:1_21_6-a40d7115d4")
     implementation("com.github.luben:zstd-jni:1.5.2-3")
 
     api(project(":Common"))
@@ -53,7 +53,7 @@ publishing {
             maven {
                 name = "cafestubeRepository"
                 credentials(PasswordCredentials::class)
-                url = uri("https://repo.cafestu.be/repository/maven-public-snapshots/")
+                url = uri("https://repo.cafestube.net/repository/maven-public-snapshots/")
             }
         }
     }

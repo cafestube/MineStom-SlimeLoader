@@ -7,6 +7,7 @@ import eu.cafestube.slimeloader.helpers.NBTHelpers.getUncompressedBiomeIndices
 import gg.astromc.slimeloader.data.NoOpSlimeFixer
 import gg.astromc.slimeloader.data.SlimeDataFixer
 import gg.astromc.slimeloader.source.SlimeSource
+import net.kyori.adventure.key.Key
 import net.kyori.adventure.nbt.BinaryTagTypes
 import net.kyori.adventure.nbt.ListBinaryTag
 import net.kyori.adventure.nbt.StringBinaryTag
@@ -16,12 +17,8 @@ import net.minestom.server.instance.IChunkLoader
 import net.minestom.server.instance.Instance
 import net.minestom.server.instance.block.Block
 import net.minestom.server.tag.Tag
-import net.minestom.server.utils.NamespaceID
-import net.minestom.server.utils.chunk.ChunkUtils.*
 import org.slf4j.LoggerFactory
 import java.io.DataInputStream
-import java.util.concurrent.CompletableFuture
-
 
 class SlimeLoader(
     private val slimeSource: SlimeSource,
@@ -89,7 +86,7 @@ class SlimeLoader(
                             properties[key] = (value as StringBinaryTag).value()
                         }
                     }
-                    var block = Block.fromNamespaceId(NamespaceID.from(blockName))!!.let {
+                    var block = Block.fromKey(Key.key(blockName))!!.let {
                         if (properties.isNotEmpty()) {
                             it.withProperties(properties)
                         } else {
@@ -143,9 +140,10 @@ class SlimeLoader(
 
         for (i in convertedPalette.indices) {
             val name: String = list.getString(i)
-            var biomeId = MinecraftServer.getBiomeRegistry().getId(NamespaceID.from(name))
-            if (biomeId == -1) {
-                biomeId = MinecraftServer.getBiomeRegistry().getId(NamespaceID.from("minecraft", "plains"))
+            var biomeId = MinecraftServer.getBiomeRegistry().getKey(Key.key(name))?.let { MinecraftServer.getBiomeRegistry().getId(it) }
+            if (biomeId == null) {
+                biomeId = MinecraftServer.getBiomeRegistry().getKey(Key.key("minecraft", "plains"))
+                    ?.let { MinecraftServer.getBiomeRegistry().getId(it) }!!
             }
 
             convertedPalette[i] = biomeId

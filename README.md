@@ -25,7 +25,7 @@ Add the following to your `build.gradle.kts`
 
 ```kotlin
 repositories { 
-  maven("https://repo.cafestu.be/repository/maven-public-snapshots/")
+  maven("https://repo.cafestube.net/repository/maven-public-snapshots/")
 }
 
 dependencies { 
