@@ -6,12 +6,15 @@ import net.kyori.adventure.nbt.BinaryTagIO
 import net.kyori.adventure.nbt.CompoundBinaryTag
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
+import kotlin.experimental.or
 
 fun serialize(dataOutputStream: DataOutputStream, slimeFile: SlimeFile) {
     dataOutputStream.writeShort(0xB10B)
-    dataOutputStream.writeByte(12) //SlimeFile version 12
+    dataOutputStream.writeByte(13) //SlimeFile version 13
 
     dataOutputStream.writeInt(slimeFile.worldVersion)
+    dataOutputStream.writeByte(V13AdditionalWorldData.fromSet(slimeFile.chunkFlags).toInt())
+
     val serializedChunks = serializeChunks(slimeFile)
     val compressedChunkData = Zstd.compress(serializedChunks)
     dataOutputStream.writeInt(compressedChunkData.size)
@@ -39,13 +42,21 @@ private fun serializeChunks(slimeFile: SlimeFile): ByteArray {
         dataStream.writeInt(chunk.sections.size)
         chunk.sections.forEach { section ->
             val hasBlockLight = section.blockLight != null
-            dataStream.writeBoolean(hasBlockLight)
+            val hasSkyLight = section.skyLight != null
+
+            var sectionFlags: Byte = 0
+            if (hasBlockLight) {
+                sectionFlags = (sectionFlags or 1.toByte())
+            }
+            if (hasSkyLight) {
+                sectionFlags = (sectionFlags or (1 shl 1).toByte())
+            }
+            dataStream.writeByte(sectionFlags.toInt())
+
             if(hasBlockLight) {
                 dataStream.write(section.blockLight)
             }
 
-            val hasSkyLight = section.skyLight != null
-            dataStream.writeBoolean(hasSkyLight)
             if(hasSkyLight) {
                 dataStream.write(section.skyLight)
             }
@@ -63,11 +74,19 @@ private fun serializeChunks(slimeFile: SlimeFile): ByteArray {
         dataStream.writeInt(serializedHeightMap.size)
         dataStream.write(serializedHeightMap)
 
-        val tileEntities = serializeCompoundTag(chunk.tileEntities)
+        val tileEntities = serializeCompoundTag(
+            CompoundBinaryTag.builder()
+                .put("tile_entities", chunk.tileEntities)
+                .build()
+        )
         dataStream.writeInt(tileEntities.size)
         dataStream.write(tileEntities)
 
-        val entities = serializeCompoundTag(chunk.entities)
+        val entities = serializeCompoundTag(
+            CompoundBinaryTag.builder()
+                .put("entities", chunk.entities)
+                .build()
+        )
         dataStream.writeInt(entities.size)
         dataStream.write(entities)
 

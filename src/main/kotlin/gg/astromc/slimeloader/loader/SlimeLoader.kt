@@ -1,38 +1,24 @@
 package gg.astromc.slimeloader.loader
 
-import com.github.luben.zstd.Zstd
-import eu.cafestube.slimeloader.data.SlimeSection
-import eu.cafestube.slimeloader.helpers.NBTHelpers
-import eu.cafestube.slimeloader.helpers.NBTHelpers.getUncompressedBiomeIndices
-import eu.cafestube.slimeloader.helpers.getChunkIndex
+import eu.cafestube.slimeloader.data.SlimeFile
+import eu.cafestube.slimeloader.loader.serialize
+import eu.cafestube.slimeloader.pruner.canBePruned
 import gg.astromc.slimeloader.data.NoOpSlimeFixer
 import gg.astromc.slimeloader.data.SlimeDataFixer
 import gg.astromc.slimeloader.source.SlimeSource
-import net.kyori.adventure.key.Key
-import net.kyori.adventure.nbt.BinaryTagTypes
-import net.kyori.adventure.nbt.ListBinaryTag
-import net.kyori.adventure.nbt.StringBinaryTag
-import net.minestom.server.MinecraftServer
 import net.minestom.server.instance.Chunk
 import net.minestom.server.instance.IChunkLoader
 import net.minestom.server.instance.Instance
-import net.minestom.server.instance.Section
-import net.minestom.server.instance.block.Block
 import net.minestom.server.tag.Tag
-import org.slf4j.LoggerFactory
-import java.io.DataInputStream
-import kotlin.collections.get
-import kotlin.compareTo
+import java.io.DataOutputStream
 
 class SlimeLoader(
-    private val slimeSource: SlimeSource,
-    private val readOnly: Boolean = false,
-    private val slimeDataFixer: SlimeDataFixer = NoOpSlimeFixer,
+    val slimeSource: SlimeSource?,
+    val slimeFile: SlimeFile
 ) : IChunkLoader {
 
-    private val logger = LoggerFactory.getLogger(SlimeLoader::class.java)
-    private val slimeFile = slimeDataFixer.fixWorld(slimeSource.loadWorld())
-    private val warnedBiomes = mutableSetOf<String>()
+    constructor(slimeSource: SlimeSource, readOnly: Boolean = false, dataFixer: SlimeDataFixer = NoOpSlimeFixer)
+            : this(if(readOnly) null else slimeSource, dataFixer.fixWorld(slimeSource.loadWorld()))
 
     override fun loadInstance(instance: Instance) {
         instance.setTag(Tag.NBT("Data"), this.slimeFile.extraTag)
@@ -47,137 +33,36 @@ class SlimeLoader(
 
             applyChunkSection(chunk, section, slimeSection)
         }
+        applyBlockEntities(chunk, slimeChunk)
 
         return chunk
     }
 
-    fun applyChunkSection(chunk: Chunk, section: Section, slimeSection: SlimeSection) {
-        if (slimeSection.skyLight != null)
-            section.setSkyLight(slimeSection.skyLight)
-        if (slimeSection.blockLight != null) {
-            section.setBlockLight(slimeSection.blockLight)
-        }
-
-
-        val biomes = convertPalette(slimeSection.biomeTag.getList("palette"))
-
-        if (biomes.isNotEmpty()) {
-            if (biomes.size == 1) {
-                section.biomePalette().fill(biomes.first())
-            } else {
-                val ids = getUncompressedBiomeIndices(slimeSection.biomeTag)
-                section.biomePalette().setAll { xx, yx, zx ->
-                    val index: Int = xx + zx * 4 + yx * 16
-                    biomes[ids[index]]
-                }
-            }
-        }
-
-        //Blocks
-        val blocks = slimeSection.blockStateTag
-        val blockPalette = blocks.getList("palette")
-        val blockData = NBTHelpers.loadBlockData(blocks)
-
-        val convertedPalette = arrayOfNulls<Block>(blockPalette.size())
-        for (i in convertedPalette.indices) {
-            val paletteEntry = blockPalette.getCompound(i)
-            val blockName = paletteEntry.getString("Name")
-            if (blockName == "minecraft:air") {
-                convertedPalette[i] = Block.AIR
-                continue
-            } else {
-                val properties = HashMap<String, String>()
-                val propertiesNbt = paletteEntry.getCompound("Properties")
-                for ((key, value) in propertiesNbt) {
-                    if (value.type() != BinaryTagTypes.STRING) {
-                        logger.warn(
-                            "Fail to parse block state properties {}, expected a TAG_String for {}, but contents were {}",
-                            propertiesNbt, key, value
-                        )
-                    } else {
-                        properties[key] = (value as StringBinaryTag).value()
-                    }
-                }
-                var block = Block.fromKey(Key.key(blockName))!!.let {
-                    if (properties.isNotEmpty()) {
-                        it.withProperties(properties)
-                    } else {
-                        it
-                    }
-                }
-                // Handler
-                val handler = MinecraftServer.getBlockManager().getHandler(block.name())
-                if (handler != null) block = block.withHandler(handler)
-
-                convertedPalette[i] = block
-            }
-        }
-
-        val dimensionType = MinecraftServer.getDimensionTypeRegistry().get(chunk.instance.dimensionType)!!
-
-        for (y in 0 until Chunk.CHUNK_SECTION_SIZE) {
-            for (z in 0 until Chunk.CHUNK_SECTION_SIZE) {
-                for (x in 0 until Chunk.CHUNK_SECTION_SIZE) {
-                    try {
-                        val blockIndex =
-                            y * Chunk.CHUNK_SECTION_SIZE * Chunk.CHUNK_SECTION_SIZE + z * Chunk.CHUNK_SECTION_SIZE + x
-
-                        if (blockData.size <= blockIndex) {
-                            continue
-                        }
-
-                        val paletteIndex: Int = blockData[blockIndex]
-                        val block = convertedPalette[paletteIndex]
-                        if (block != null) {
-                            chunk.setBlock(
-                                x,
-                                dimensionType.minY() + y + (Chunk.CHUNK_SECTION_SIZE * slimeSection.index),
-                                z,
-                                block
-                            )
-                        }
-                    } catch (e: Exception) {
-                        MinecraftServer.getExceptionManager().handleException(e)
-                    }
-                }
-            }
-        }
+    override fun supportsParallelSaving(): Boolean {
+        return false
     }
-
-    private fun convertPalette(list: ListBinaryTag): IntArray {
-        val convertedPalette = IntArray(list.size())
-
-        for (i in convertedPalette.indices) {
-            val name: String = list.getString(i)
-            var biomeId = MinecraftServer.getBiomeRegistry().getKey(Key.key(name))?.let { MinecraftServer.getBiomeRegistry().getId(it) }
-            if (biomeId == null) {
-                biomeId = MinecraftServer.getBiomeRegistry().getKey(Key.key("minecraft", "plains"))
-                    ?.let { MinecraftServer.getBiomeRegistry().getId(it) }!!
-            }
-
-            convertedPalette[i] = biomeId
-        }
-
-        return convertedPalette
-    }
-
 
     override fun saveChunk(chunk: Chunk) {
-        if (readOnly) return
-        //TODO: Create slime chunk from chunk
-//        chunkCache[getChunkIndex(chunk.chunkX, chunk.chunkZ)] = chunk
+        //Even if the world is read-only, we still need to save the chunk to the in memory slime file
+        //so chunk-reloads work properly
+
+        val slime = toSlimeChunk(chunk)
+        if(slime.canBePruned()) {
+            slimeFile.removeChunk(chunk.chunkX, chunk.chunkZ)
+            return
+        }
+        slimeFile.setChunk(chunk.chunkX, chunk.chunkZ, slime)
     }
 
     override fun saveInstance(instance: Instance) {
-        if (readOnly) return
+        if (slimeSource == null) return
 
-//        val outputStream = slimeSource.save()
-//        val dataOutputStream = DataOutputStream(outputStream)
+        val outputStream = slimeSource.save()
+        val dataOutputStream = DataOutputStream(outputStream)
 
-        //TODO: Update serializer
-//        val serializer = SlimeSerializer()
-//        serializer.serialize(dataOutputStream, instance, chunkCache.values.toList())
-
+        serialize(dataOutputStream, slimeFile)
+        dataOutputStream.flush()
+        dataOutputStream.close()
     }
 
 }

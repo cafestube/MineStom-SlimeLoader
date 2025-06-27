@@ -9,17 +9,29 @@ data class SlimeFile(
     val worldVersion: Int,
     val chunkFlags: EnumSet<V13AdditionalWorldData>,
 
-    val chunkMinX: Short,
-    val chunkMinZ: Short,
-    val width: Int,
-    val depth: Int,
-
-    val extraTag: CompoundBinaryTag?,
-    val chunks: Map<Long, SlimeChunk>
+    var extraTag: CompoundBinaryTag?,
+    val chunks: MutableMap<Long, SlimeChunk>
 ) {
+
+    fun clone(): SlimeFile {
+        return SlimeFile(
+            worldVersion,
+            chunkFlags,
+            extraTag,
+            chunks.toMutableMap()
+        )
+    }
+
+    fun setChunk(x: Int, z: Int, chunk: SlimeChunk) {
+        chunks[getChunkIndex(x, z)] = chunk
+    }
 
     fun getChunk(x: Int, z: Int): SlimeChunk? {
         return chunks[getChunkIndex(x, z)]
+    }
+
+    fun removeChunk(chunkX: Int, chunkZ: Int) {
+        chunks.remove(getChunkIndex(chunkX, chunkZ))
     }
 
 }

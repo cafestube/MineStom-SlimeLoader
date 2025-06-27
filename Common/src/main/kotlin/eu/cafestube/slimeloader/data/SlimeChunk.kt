@@ -13,7 +13,7 @@ class SlimeChunk(
     val blockTicks: ListBinaryTag?,
     val fluidTicks: ListBinaryTag?,
 
-    val tileEntities: CompoundBinaryTag,
-    val entities: CompoundBinaryTag,
+    val tileEntities: ListBinaryTag,
+    val entities: ListBinaryTag,
     val extra: CompoundBinaryTag
 )
