@@ -38,7 +38,7 @@ private val blockStateId2NBTCache: Int2ObjectMap<CompoundBinaryTag> = Int2Object
 private val logger = LoggerFactory.getLogger(SlimeLoader::class.java)
 
 @Suppress("UnstableApiUsage")
-private fun loadBiomePalette(paletteTag: ListBinaryTag): IntArray {
+fun loadBiomePalette(paletteTag: ListBinaryTag): IntArray {
     val convertedPalette = IntArray(paletteTag.size())
 
     paletteTag.forEachIndexed { index, tag ->
@@ -52,7 +52,7 @@ private fun loadBiomePalette(paletteTag: ListBinaryTag): IntArray {
     return convertedPalette
 }
 
-private fun loadBlockPalette(paletteTag: ListBinaryTag): Array<Block> {
+fun loadBlockPalette(paletteTag: ListBinaryTag): Array<Block> {
     val convertedPalette = Array(paletteTag.size()) { Block.AIR }
 
     paletteTag.forEachIndexed { index, tag ->
@@ -197,9 +197,9 @@ fun applyBlockEntities(chunk: Chunk, slimeChunk: SlimeChunk) {
 }
 
 @Suppress("UnstableApiUsage")
-        /*
-         * Contains code from Minestom's AnvilLoader licenced under Apache License 2.0
-         */
+/*
+ * Contains code from Minestom's AnvilLoader licenced under Apache License 2.0
+ */
 fun toSlimeChunk(chunk: Chunk): SlimeChunk {
     val sections = Array(chunk.sections.size) { DUMMY_SECTION }
     val blockEntities = ListBinaryTag.builder(BinaryTagTypes.COMPOUND)
