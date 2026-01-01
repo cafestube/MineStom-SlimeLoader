@@ -7,7 +7,7 @@ import gg.astromc.slimeloader.data.NoOpSlimeFixer
 import gg.astromc.slimeloader.data.SlimeDataFixer
 import gg.astromc.slimeloader.source.SlimeSource
 import net.minestom.server.instance.Chunk
-import net.minestom.server.instance.IChunkLoader
+import net.minestom.server.instance.ChunkLoader
 import net.minestom.server.instance.Instance
 import net.minestom.server.tag.Tag
 import java.io.DataOutputStream
@@ -15,7 +15,7 @@ import java.io.DataOutputStream
 class SlimeLoader(
     val slimeSource: SlimeSource?,
     val slimeFile: SlimeFile
-) : IChunkLoader {
+) : ChunkLoader {
 
     constructor(slimeSource: SlimeSource, readOnly: Boolean = false, dataFixer: SlimeDataFixer = NoOpSlimeFixer)
             : this(if(readOnly) null else slimeSource, dataFixer.fixWorld(slimeSource.loadWorld()))

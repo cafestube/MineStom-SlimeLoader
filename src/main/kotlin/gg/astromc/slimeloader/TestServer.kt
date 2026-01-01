@@ -4,11 +4,10 @@ import gg.astromc.slimeloader.source.FileSlimeSource
 import gg.astromc.slimeloader.source.SlimeSource
 import net.minestom.server.MinecraftServer
 import net.minestom.server.coordinate.Pos
-import net.minestom.server.entity.GameMode
-import net.minestom.server.instance.IChunkLoader
 import net.minestom.server.world.DimensionType
 import gg.astromc.slimeloader.loader.SlimeLoader
 import net.minestom.server.event.player.AsyncPlayerConfigurationEvent
+import net.minestom.server.instance.ChunkLoader
 import java.io.File
 import kotlin.system.measureTimeMillis
 
@@ -21,7 +20,7 @@ fun main() {
 
     val instanceManager = MinecraftServer.getInstanceManager()
 
-    val slimeLoader: IChunkLoader
+    val slimeLoader: ChunkLoader
 
     val file = File(System.getenv("TESTING_SLIME_FILE"))
     val slimeSource: SlimeSource = FileSlimeSource(file)

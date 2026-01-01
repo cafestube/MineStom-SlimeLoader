@@ -1,7 +1,7 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm") version "2.0.0"
+    kotlin("jvm") version "2.3.0"
 
     `maven-publish`
     `java-library`
@@ -15,27 +15,20 @@ repositories {
 }
 
 dependencies {
-    implementation("net.minestom:minestom-snapshots:1_21_6-a40d7115d4")
+    implementation("net.minestom:minestom:2025.12.19-1.21.10")
     implementation("com.github.luben:zstd-jni:1.5.2-3")
+    compileOnly("it.unimi.dsi:fastutil:8.5.18")
 
     api(project(":Common"))
 }
 
-val compileKotlin: KotlinCompile by tasks
-
-compileKotlin.kotlinOptions {
-    freeCompilerArgs = listOf("-Xinline-classes")
-    jvmTarget = "21"
-}
-
 kotlin {
-    jvmToolchain(21)
+    jvmToolchain(25)
 }
-
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_21
-    targetCompatibility = JavaVersion.VERSION_21
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
     withSourcesJar()
     withJavadocJar()
 }
