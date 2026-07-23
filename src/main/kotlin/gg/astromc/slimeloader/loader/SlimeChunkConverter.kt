@@ -1,5 +1,6 @@
 package gg.astromc.slimeloader.loader
 
+import com.sun.org.slf4j.internal.LoggerFactory
 import eu.cafestube.slimeloader.data.DUMMY_SECTION
 import eu.cafestube.slimeloader.data.SlimeChunk
 import eu.cafestube.slimeloader.data.SlimeSection
@@ -23,7 +24,6 @@ import net.minestom.server.instance.palette.Palettes
 import net.minestom.server.registry.RegistryKey
 import net.minestom.server.utils.MathUtils
 import net.minestom.server.world.biome.Biome
-import org.slf4j.LoggerFactory
 import java.util.ArrayList
 import java.util.HashMap
 import kotlin.collections.component1
@@ -43,7 +43,7 @@ fun loadBiomePalette(paletteTag: ListBinaryTag): IntArray {
 
     paletteTag.forEachIndexed { index, tag ->
         if (tag !is StringBinaryTag) {
-            throw IllegalStateException("Expected a StringBinaryTag in biome palette at index $index, but got ${tag.examinableName()}")
+            throw IllegalStateException("Expected a StringBinaryTag in biome palette at index $index, but got ${tag.type()}")
         }
 
         val biomeId = MinecraftServer.getBiomeRegistry().getId(RegistryKey.unsafeOf(tag.value()))
@@ -52,17 +52,17 @@ fun loadBiomePalette(paletteTag: ListBinaryTag): IntArray {
     return convertedPalette
 }
 
-fun loadBlockPalette(paletteTag: ListBinaryTag): Array<Block> {
-    val convertedPalette = Array(paletteTag.size()) { Block.AIR }
+fun loadBlockPalette(paletteTag: ListBinaryTag): IntArray {
+    val convertedPalette = IntArray(paletteTag.size()) { Block.AIR.stateId() }
 
     paletteTag.forEachIndexed { index, tag ->
         if (tag !is CompoundBinaryTag) {
-            throw IllegalStateException("Expected a CompoundBinaryTag in block palette at index $index, but got ${tag.examinableName()}")
+            throw IllegalStateException("Expected a CompoundBinaryTag in block palette at index $index, but got ${tag.type()}")
         }
         val name = tag.getString("Name")
 
         if (name == "minecraft:air") {
-            convertedPalette[index] = Block.AIR
+            convertedPalette[index] = Block.AIR.stateId()
             return@forEachIndexed
         }
         var block = Block.fromKey(name) ?: throw IllegalStateException("Unknown block $name")
@@ -74,7 +74,7 @@ fun loadBlockPalette(paletteTag: ListBinaryTag): Array<Block> {
         val handler = MinecraftServer.getBlockManager().getHandler(block.name())
         if (handler != null) block = block.withHandler(handler)
 
-        convertedPalette[index] = block
+        convertedPalette[index] = block.stateId()
     }
 
     return convertedPalette
@@ -111,18 +111,7 @@ fun applyChunkSection(chunk: Chunk, section: Section, slimeSection: SlimeSection
         if(packedIndices.isEmpty())
             throw IllegalStateException("Missing packed biomes data in slime section ${slimeSection.index} at chunk ${chunk.chunkX}, ${chunk.chunkZ}")
 
-
-        val biomeIndices = IntArray(64)
-
-        var bitsPerEntry = packedIndices.size * 64 / biomeIndices.size
-        if (bitsPerEntry > 3)
-            bitsPerEntry = MathUtils.bitsToRepresent(biome.size)
-        Palettes.unpack(biomeIndices, packedIndices, bitsPerEntry)
-
-        section.biomePalette().setAll { x: Int, y: Int, z: Int ->
-            val index = x + z * 4 + y * 16
-            biome[biomeIndices[index]]
-        }
+        section.biomePalette().load(biome, packedIndices)
     }
 
 
@@ -135,32 +124,14 @@ fun applyChunkSection(chunk: Chunk, section: Section, slimeSection: SlimeSection
 
     if (palette.size == 1) {
         // One solid block, no need to check the data
-        section.blockPalette().fill(palette.first().stateId())
+        section.blockPalette().fill(palette.first())
     } else if (palette.size > 1) {
         val packedStates: LongArray = blocks.getLongArray("data")
         if(packedStates.isEmpty())
             throw IllegalStateException("Missing packed states data in slime section ${slimeSection.index} at chunk ${chunk.chunkX}, ${chunk.chunkZ}")
 
-        val blockStateIndices = IntArray(Chunk.CHUNK_SECTION_SIZE * Chunk.CHUNK_SECTION_SIZE * Chunk.CHUNK_SECTION_SIZE)
-        Palettes.unpack(blockStateIndices, packedStates, packedStates.size * 64 / blockStateIndices.size)
-
-        for (y in 0..<Chunk.CHUNK_SECTION_SIZE) {
-            for (z in 0..<Chunk.CHUNK_SECTION_SIZE) {
-                for (x in 0..<Chunk.CHUNK_SECTION_SIZE) {
-                    try {
-                        val blockIndex = y * Chunk.CHUNK_SECTION_SIZE * Chunk.CHUNK_SECTION_SIZE + z * Chunk.CHUNK_SECTION_SIZE + x
-                        val paletteIndex = blockStateIndices[blockIndex]
-                        val block: Block = palette[paletteIndex]
-
-                        chunk.setBlock(x, dimensionType.minY() + y + (Chunk.CHUNK_SECTION_SIZE * slimeSection.index), z, block)
-                    } catch (e: Exception) {
-                        MinecraftServer.getExceptionManager().handleException(e)
-                    }
-                }
-            }
-        }
+        section.blockPalette().load(palette, packedStates)
     }
-
 }
 
 /*

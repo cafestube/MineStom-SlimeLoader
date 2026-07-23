@@ -15,10 +15,10 @@ repositories {
 }
 
 dependencies {
-    implementation("net.minestom:minestom:2025.12.19-1.21.10")
+    implementation("net.minestom:minestom:2026.07.12-26.2")
     implementation("com.github.luben:zstd-jni:1.5.2-3")
     compileOnly("it.unimi.dsi:fastutil:8.5.18")
-
+    compileOnly("org.slf4j:slf4j-api:2.0.18")
     api(project(":Common"))
 }
 

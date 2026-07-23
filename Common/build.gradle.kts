@@ -16,7 +16,7 @@ dependencies {
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.9.0")
 
     implementation("com.github.luben:zstd-jni:1.5.2-3")
-    implementation("net.kyori:adventure-nbt:4.17.0")
+    implementation("net.kyori:adventure-nbt:5.2.0")
 }
 
 kotlin {
