@@ -1,6 +1,5 @@
 package gg.astromc.slimeloader.loader
 
-import com.sun.org.slf4j.internal.LoggerFactory
 import eu.cafestube.slimeloader.data.DUMMY_SECTION
 import eu.cafestube.slimeloader.data.SlimeChunk
 import eu.cafestube.slimeloader.data.SlimeSection
@@ -24,6 +23,7 @@ import net.minestom.server.instance.palette.Palettes
 import net.minestom.server.registry.RegistryKey
 import net.minestom.server.utils.MathUtils
 import net.minestom.server.world.biome.Biome
+import org.slf4j.LoggerFactory
 import java.util.ArrayList
 import java.util.HashMap
 import kotlin.collections.component1

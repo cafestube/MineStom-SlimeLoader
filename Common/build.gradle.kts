@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "eu.cafestube"
-version = "1.5.0-SNAPSHOT"
+version = "1.6.0-SNAPSHOT"
 
 repositories {
     mavenCentral()
@@ -40,7 +40,7 @@ publishing {
             maven {
                 name = "cafestubeRepository"
                 credentials(PasswordCredentials::class)
-                url = uri("https://repo.cafestube.net/repository/maven-public-snapshots/")
+                url = uri("https://repo.cafestube.net/repository/maven-snapshots/")
             }
         }
     }
